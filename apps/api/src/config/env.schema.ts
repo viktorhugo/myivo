@@ -10,6 +10,7 @@ export const envSchema = z.object({
     .string()
     .min(1, 'Debe ser un hash Argon2, nunca la contraseña en texto plano'),
   IMAGE_STORAGE_PATH: z.string().min(1).default('./data/invoices'),
+  ANTHROPIC_API_KEY: z.string().min(1, 'Requerida para el adaptador de extracción de facturas'),
 });
 
 export type Env = z.infer<typeof envSchema>;

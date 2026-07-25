@@ -21,17 +21,104 @@ enum FacturaEstado {
   fallida
 }
 
-// Campos mínimos para User Story 1 (captura). El resto de campos de
-// data-model.md (comercio, montos, elegibilidad, CUFE, etc.) se agregan en
-// User Story 2 y 3.
+enum MedioPago {
+  efectivo
+  tarjeta_debito
+  tarjeta_credito
+  transferencia_pse
+  billetera_digital
+}
+
+enum CufeOrigen {
+  qr
+  ocr_respaldo
+}
+
+// Campos de captura (US1) + extracción (US2). Los campos de clasificación
+// tributaria (tipoDocumento, elegibilidad*) y el soft-delete se agregan en
+// User Story 3 y 4/5 — ver data-model.md.
 model Factura {
   id                 String        @id @default(uuid())
   estado             FacturaEstado @default(recibida)
   rutaImagenOriginal String
   /// Array de { ruta, tipoTransformacion, creadoEn } — ver ArchivoDerivado en el dominio.
   derivados          Json          @default("[]")
-  creadaEn           DateTime      @default(now())
-  actualizadaEn      DateTime      @updatedAt
+
+  comercioNombre  String?
+  comercioNIT     String?
+  fechaHoraCompra DateTime?
+  moneda          String    @default("COP")
+
+  subtotalCentavos        Int?
+  /// Array de { tarifa, valorCentavos } — ver IvaTarifa en el dominio.
+  ivaPorTarifa            Json    @default("[]")
+  impuestoConsumoCentavos Int?
+  propinaCentavos         Int?
+  totalCentavos           Int?
+
+  medioPago                 MedioPago?
+  adquirienteNombre         String?
+  adquirienteIdentificacion String?
+
+  cufe       String?
+  cufeOrigen CufeOrigen?
+
+  /// Mapa { nombreCampo: nivelConfianza (0-1) } — ver ConfianzaCampos en el dominio.
+  confianzaCampos Json @default("{}")
+
+  items               ItemFactura[]
+  correcciones        CorreccionManual[]
+  extraccionesCrudas  ExtraccionCruda[]
+
+  creadaEn      DateTime @default(now())
+  actualizadaEn DateTime @updatedAt
 
   @@map("facturas")
+}
+
+model ItemFactura {
+  id        String  @id @default(uuid())
+  facturaId String
+  factura   Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  descripcion           String?
+  cantidad              Float?
+  valorUnitarioCentavos Int?
+  valorTotalCentavos    Int?
+  nivelConfianza        Float   @default(0)
+
+  @@map("items_factura")
+}
+
+// Registro de un campo editado por el usuario, diferenciado del valor
+// extraído — data-model.md § Corrección Manual, FR-011/FR-012.
+model CorreccionManual {
+  id        String  @id @default(uuid())
+  facturaId String
+  factura   Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  campo                 String
+  valorExtraidoOriginal String
+  valorCorregido        String
+
+  corregidoEn DateTime @default(now())
+
+  @@map("correcciones_manuales")
+}
+
+// Exigida por la constitution (Principio III), no por el spec de negocio:
+// preserva la salida cruda del proveedor de extracción para permitir
+// reprocesamiento futuro sin volver a fotografiar nada.
+model ExtraccionCruda {
+  id        String  @id @default(uuid())
+  facturaId String
+  factura   Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  jsonCrudo     Json
+  versionPrompt String
+  versionModelo String
+
+  creadaEn DateTime @default(now())
+
+  @@map("extracciones_crudas")
 }

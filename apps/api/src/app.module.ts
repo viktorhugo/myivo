@@ -5,6 +5,7 @@ import { validateEnv } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { ExtractionModule } from './modules/extraction/extraction.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
     PrismaModule,
     AuthModule,
     InvoicesModule,
+    ExtractionModule,
   ],
   controllers: [AppController],
 })

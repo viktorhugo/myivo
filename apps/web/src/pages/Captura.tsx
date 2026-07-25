@@ -9,7 +9,7 @@ const ETIQUETA_ESTADO: Record<FacturaDto['estado'], string> = {
   fallida: 'Fallida',
 };
 
-export default function Captura() {
+export default function Captura({ onSeleccionar }: { onSeleccionar: (facturaId: string) => void }) {
   const [facturas, setFacturas] = useState<FacturaDto[]>([]);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +54,9 @@ export default function Captura() {
       <ul>
         {facturas.map((factura) => (
           <li key={factura.id}>
-            <strong>{ETIQUETA_ESTADO[factura.estado]}</strong> — {factura.id}
+            <button type="button" onClick={() => onSeleccionar(factura.id)}>
+              <strong>{ETIQUETA_ESTADO[factura.estado]}</strong> — {factura.id}
+            </button>
           </li>
         ))}
       </ul>

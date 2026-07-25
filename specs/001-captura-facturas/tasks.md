@@ -95,17 +95,17 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 ### Implementación para User Story 2
 
-- [ ] T025 [P] [US2] Ampliar la entidad `Factura` con los campos de `data-model.md` (comercio, fecha/hora, moneda, montos, IVA por tarifa, medio de pago, adquiriente, CUFE, `confianzaCampos`) en `packages/domain/src/entities/factura.ts`
-- [ ] T026 [US2] Migración Prisma: ampliar tabla `Factura` + crear tablas `ItemFactura` y `ExtraccionCruda` en `apps/api/prisma/schema.prisma`
-- [ ] T027 [P] [US2] Adaptador `InvoiceExtractor` sobre Claude API (`claude-sonnet-5`, `output_config.format`) en `apps/api/src/modules/extraction/claude-invoice-extractor.adapter.ts` — research.md § 3
-- [ ] T028 [P] [US2] Decodificador determinístico de CUFE/CUDE desde QR (nunca vía LLM) en `apps/api/src/modules/extraction/cufe-decoder.ts` — constitution Principio III, FR-007/FR-008
-- [ ] T029 [US2] Schema Zod de validación de la salida del extractor antes de persistir en el dominio, en `packages/domain/src/ports/invoice-extractor.port.ts` — constitution Principio III
-- [ ] T030 [P] [US2] Regla de dominio pura de cuadre monetario (`subtotal + IVA + propina ≠ total → necesita_revisión`), con test unitario, en `packages/domain/src/tax-rules/cuadre-monetario.ts` — constitution Principios II/VIII, FR-010
-- [ ] T031 [US2] Orquestador de extracción: toma facturas en `recibida`, invoca extractor + decodificador CUFE, aplica cuadre monetario, transiciona el estado (`procesando → extraída` / `necesita_revisión` / `fallida`) en `apps/api/src/modules/extraction/extraction.processor.ts`
-- [ ] T032 [US2] Endpoint `PATCH /invoices/:id/fields`: corrección manual de campos, crea un registro `CorreccionManual` por campo (FR-011/FR-012) en `apps/api/src/modules/invoices/invoices.controller.ts`
-- [ ] T033 [US2] Endpoint `POST /invoices/:id/reprocess`: reintento de extracción para facturas en `fallida` (FR-013) en `apps/api/src/modules/invoices/invoices.controller.ts`
-- [ ] T034 [US2] Ampliar `GET /invoices/:id` con todos los campos extraídos, `confianzaCampos` y correcciones previas
-- [ ] T035 [P] [US2] Vista de detalle — foto colapsable arriba, campos editables abajo, indicador de confianza por campo (punto de color) — en `apps/web/src/pages/Detalle.tsx`
+- [X] T025 [P] [US2] Ampliar la entidad `Factura` con los campos de `data-model.md` (comercio, fecha/hora, moneda, montos, IVA por tarifa, medio de pago, adquiriente, CUFE, `confianzaCampos`) en `packages/domain/src/entities/factura.ts`
+- [X] T026 [US2] Migración Prisma: ampliar tabla `Factura` + crear tablas `ItemFactura`, `ExtraccionCruda` y `CorreccionManual` en `apps/api/prisma/schema.prisma`
+- [X] T027 [P] [US2] Adaptador `InvoiceExtractor` sobre Claude API (`claude-sonnet-5`, `output_config.format`) en `apps/api/src/modules/extraction/claude-invoice-extractor.adapter.ts` — research.md § 3
+- [X] T028 [P] [US2] Decodificador determinístico de CUFE/CUDE desde QR (nunca vía LLM) en `apps/api/src/modules/extraction/cufe-decoder.ts` — constitution Principio III, FR-007/FR-008
+- [X] T029 [US2] Schema Zod de validación de la salida del extractor antes de persistir en el dominio, en `packages/domain/src/ports/invoice-extractor.port.ts` — constitution Principio III
+- [X] T030 [P] [US2] Regla de dominio pura de cuadre monetario (`subtotal + IVA + propina ≠ total → necesita_revisión`), con test unitario, en `packages/domain/src/tax-rules/cuadre-monetario.ts` — constitution Principios II/VIII, FR-010
+- [X] T031 [US2] Orquestador de extracción: toma facturas en `recibida`, invoca extractor + decodificador CUFE, aplica cuadre monetario, transiciona el estado (`procesando → extraída` / `necesita_revisión` / `fallida`) en `apps/api/src/modules/extraction/extraction.processor.ts`
+- [X] T032 [US2] Endpoint `PATCH /invoices/:id/fields`: corrección manual de campos, crea un registro `CorreccionManual` por campo (FR-011/FR-012) en `apps/api/src/modules/invoices/invoices.controller.ts`
+- [X] T033 [US2] Endpoint `POST /invoices/:id/reprocess`: reintento de extracción para facturas en `fallida` (FR-013) en `apps/api/src/modules/invoices/invoices.controller.ts`
+- [X] T034 [US2] Ampliar `GET /invoices/:id` con todos los campos extraídos, `confianzaCampos` y correcciones previas
+- [X] T035 [P] [US2] Vista de detalle — foto colapsable arriba, campos editables abajo, indicador de confianza por campo (punto de color) — en `apps/web/src/pages/Detalle.tsx`
 
 **Checkpoint**: las facturas capturadas en US1 ahora se extraen automáticamente y son corregibles. Validar con `quickstart.md` § H2.
 
