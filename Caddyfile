@@ -1,0 +1,21 @@
+{
+	email {$CADDY_ACME_EMAIL}
+}
+
+# {$APP_DOMAIN} se define como variable de entorno al desplegar (p. ej. facturas.tudominio.com).
+# Caddy obtiene y renueva el certificado TLS automáticamente para ese dominio.
+{$APP_DOMAIN} {
+	encode gzip
+
+	# Backend NestJS — se activa cuando el servicio `api` se agregue a docker-compose.yml.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# SPA de apps/web ya compilada (vite build), copiada a /srv/web en el contenedor de Caddy.
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@myivo/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "jest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@myivo/domain": "workspace:*",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "argon2": "^0.45.1",
+    "express-session": "^1.19.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/testing": "^11.1.28",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.1",
+    "@types/supertest": "^7.2.1",
+    "dotenv": "^17.4.2",
+    "jest": "^30.4.2",
+    "prisma": "^7.9.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.12"
+  }
+}

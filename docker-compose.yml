@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-myivo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-myivo}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - myivo_internal
+    ports:
+      # Solo accesible desde el propio VPS (psql/administración), nunca público.
+      - "127.0.0.1:5432:5432"
+
+volumes:
+  postgres_data:
+  # Facturas originales + derivados (constitution Principio I). Se monta en el
+  # servicio de apps/api cuando ese contenedor se agregue a este compose.
+  invoice_images:
+
+networks:
+  myivo_internal:
+    driver: bridge

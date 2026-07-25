@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Necesarios para compilar/descargar sus binarios nativos (Argon2 para hash de
+# contraseñas, motores de Prisma para el acceso a PostgreSQL).
+onlyBuiltDependencies:
+  - argon2
+  - "@prisma/engines"
+  - prisma
+  - unrs-resolver
