@@ -1,4 +1,3 @@
-// Sin modelos todavía — se agregan en User Story 1 (Factura) y siguientes.
 // La URL de conexión NO vive aquí (Prisma 7 ya no lo permite): para Migrate
 // está en prisma.config.ts, y en runtime la pasa el driver adapter en
 // src/prisma/prisma.service.ts.
@@ -9,4 +8,30 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// Los identificadores de enum de Prisma no admiten tildes; @map conserva el
+// valor real (con tilde) en la columna de Postgres y en el dominio
+// (packages/domain/src/state-machine/factura-estado.ts).
+enum FacturaEstado {
+  recibida
+  procesando
+  extraida          @map("extraída")
+  necesita_revision @map("necesita_revisión")
+  fallida
+}
+
+// Campos mínimos para User Story 1 (captura). El resto de campos de
+// data-model.md (comercio, montos, elegibilidad, CUFE, etc.) se agregan en
+// User Story 2 y 3.
+model Factura {
+  id                 String        @id @default(uuid())
+  estado             FacturaEstado @default(recibida)
+  rutaImagenOriginal String
+  /// Array de { ruta, tipoTransformacion, creadoEn } — ver ArchivoDerivado en el dominio.
+  derivados          Json          @default("[]")
+  creadaEn           DateTime      @default(now())
+  actualizadaEn      DateTime      @updatedAt
+
+  @@map("facturas")
 }

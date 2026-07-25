@@ -1,16 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
-    "module": "commonjs",
-    "moduleResolution": "node10",
     "target": "ES2023",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "allowSyntheticDefaultImports": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "incremental": true
+    "incremental": true,
+    "types": ["node", "express", "express-session", "multer", "jest"]
   },
   "include": ["src"]
 }

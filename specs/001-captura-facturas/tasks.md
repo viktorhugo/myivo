@@ -69,19 +69,19 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 ### Tests para User Story 1
 
-- [ ] T015 [P] [US1] Test unitario de transiciones válidas/inválidas de `Factura.estado` en `packages/domain/test/state-machine.spec.ts` — constitution Principio VIII exige test para la máquina de estados
+- [X] T015 [P] [US1] Test unitario de transiciones válidas/inválidas de `Factura.estado` en `packages/domain/test/state-machine.spec.ts` — constitution Principio VIII exige test para la máquina de estados
 
 ### Implementación para User Story 1
 
-- [ ] T016 [P] [US1] Crear la entidad `Factura` (campos mínimos: `id`, `estado`, `rutaImagenOriginal`, `derivados`, `creadaEn`, `actualizadaEn`) en `packages/domain/src/entities/factura.ts` — el resto de campos de `data-model.md` se añade en US2/US3
-- [ ] T017 [US1] Migración Prisma: tabla `Factura` con los campos de T016 en `apps/api/prisma/schema.prisma`
-- [ ] T018 [US1] Repositorio Prisma de `Factura` (crear, obtener por id, actualizar estado) en `apps/api/src/modules/invoices/factura.repository.ts`
-- [ ] T019 [US1] Servicio de almacenamiento de archivos — escribe en el volumen Docker, nunca sobrescribe el original (constitution Principio I, FR-005) en `apps/api/src/modules/invoices/file-storage.service.ts`
-- [ ] T020 [US1] Endpoint `POST /invoices` (multipart, uno o varios archivos): guarda cada imagen de inmediato y crea una `Factura` en estado `recibida` por archivo, de forma independiente entre sí (FR-001/FR-002/FR-003) en `apps/api/src/modules/invoices/invoices.controller.ts`
-- [ ] T021 [US1] Endpoint `GET /invoices/:id/image`: sirve el byte-stream original sin importar el `estado` de la factura — soporta el escenario "el procesamiento falla pero la foto sigue disponible" en `apps/api/src/modules/invoices/invoices.controller.ts`
-- [ ] T022 [US1] Endpoint `GET /invoices/:id` (versión mínima: `estado` + metadata de imagen; US2 le añade los campos extraídos) en `apps/api/src/modules/invoices/invoices.controller.ts`
-- [ ] T023 [P] [US1] Página de captura — input de cámara/archivo, subida en lote, lista con el estado de cada foto — en `apps/web/src/pages/Captura.tsx`
-- [ ] T024 [US1] Cliente HTTP hacia `POST /invoices` y `GET /invoices/:id` en `apps/web/src/services/invoices.ts`
+- [X] T016 [P] [US1] Crear la entidad `Factura` (campos mínimos: `id`, `estado`, `rutaImagenOriginal`, `derivados`, `creadaEn`, `actualizadaEn`) en `packages/domain/src/entities/factura.ts` — el resto de campos de `data-model.md` se añade en US2/US3
+- [X] T017 [US1] Migración Prisma: tabla `Factura` con los campos de T016 en `apps/api/prisma/schema.prisma`
+- [X] T018 [US1] Repositorio Prisma de `Factura` (crear, obtener por id, actualizar estado) en `apps/api/src/modules/invoices/factura.repository.ts`
+- [X] T019 [US1] Servicio de almacenamiento de archivos — escribe en el volumen Docker, nunca sobrescribe el original (constitution Principio I, FR-005) en `apps/api/src/modules/invoices/file-storage.service.ts`
+- [X] T020 [US1] Endpoint `POST /invoices` (multipart, uno o varios archivos): guarda cada imagen de inmediato y crea una `Factura` en estado `recibida` por archivo, de forma independiente entre sí (FR-001/FR-002/FR-003) en `apps/api/src/modules/invoices/invoices.controller.ts`
+- [X] T021 [US1] Endpoint `GET /invoices/:id/image`: sirve el byte-stream original sin importar el `estado` de la factura — soporta el escenario "el procesamiento falla pero la foto sigue disponible" en `apps/api/src/modules/invoices/invoices.controller.ts`
+- [X] T022 [US1] Endpoint `GET /invoices/:id` (versión mínima: `estado` + metadata de imagen; US2 le añade los campos extraídos) en `apps/api/src/modules/invoices/invoices.controller.ts`
+- [X] T023 [P] [US1] Página de captura — input de cámara/archivo, subida en lote, lista con el estado de cada foto — en `apps/web/src/pages/Captura.tsx`
+- [X] T024 [US1] Cliente HTTP hacia `POST /invoices` y `GET /invoices/:id` en `apps/web/src/services/invoices.ts`
 
 **Checkpoint**: User Story 1 es una MVP demostrable de punta a punta — foto → guardada → estado visible — sin depender de extracción. Validar con `quickstart.md` § H1 antes de continuar.
 

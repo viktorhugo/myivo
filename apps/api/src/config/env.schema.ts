@@ -9,6 +9,7 @@ export const envSchema = z.object({
   AUTH_PASSWORD_HASH: z
     .string()
     .min(1, 'Debe ser un hash Argon2, nunca la contraseña en texto plano'),
+  IMAGE_STORAGE_PATH: z.string().min(1).default('./data/invoices'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -28,3 +28,6 @@ __pycache__/
 
 # Testing
 coverage/
+
+# Datos locales (fotos de facturas en desarrollo — nunca se versionan)
+apps/api/data/
