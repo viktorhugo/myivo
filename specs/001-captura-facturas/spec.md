@@ -199,6 +199,7 @@ Como usuario, quiero que el sistema detecte cuando subo dos fotos de la misma fa
 - **FR-028**: Cuando una sola foto parezca contener más de una factura física, el sistema MUST marcar la imagen y solicitar al usuario volver a capturarla como fotos separadas, una por documento, en lugar de intentar procesarla como un solo documento.
 - **FR-029**: Eliminar un documento desde las vistas del usuario MUST ser un soft-delete: el registro y los archivos subyacentes MUST permanecer recuperables y MUST NOT ser purgados por ningún proceso automático.
 - **FR-030**: El sistema MUST exigir autenticación de un único usuario (usuario/contraseña o passkey) sobre una conexión HTTPS antes de permitir el acceso a cualquier factura, imagen o dato del sistema, dado que la aplicación es accesible desde internet para permitir la captura fuera de casa.
+- **FR-031**: El proveedor y modelo de extracción MUST ser seleccionable por configuración (variable de entorno), entre al menos Claude, OpenAI, Google Gemini, y proveedores compatibles con la API de OpenAI (p. ej. Z.ai/GLM, Qwen/DashScope, Kimi/Moonshot) — sin requerir cambios de código para cambiar de proveedor. Cada proveedor gestiona su propia API key de forma independiente (constitution Principio VII: secretos vía variables de entorno, nunca versionados).
 
 ### Key Entities *(include if feature involves data)*
 

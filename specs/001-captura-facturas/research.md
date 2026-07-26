@@ -67,3 +67,24 @@
 **Decision**: La ingesta de fotos en lote se separa de la extracción: FR-002/FR-003 (guardar de inmediato) ocurren de forma síncrona por foto; la extracción (H2) se encola de forma asíncrona y, para el backlog inicial, puede despacharse vía **Message Batches API** de Anthropic en vez de llamadas síncronas una por una.
 
 **Rationale**: El backlog acumulado (SC-001: al menos 50 fotos en una sesión) no tiene restricción de latencia — encaja exactamente con el caso de uso de Batches (hasta 50% más barato, resultados en minutos/horas). Esto es coherente con FR-003/FR-004: la foto se guarda y el estado pasa a "procesando" independientemente del mecanismo de despacho de la extracción.
+
+## 10. Selección de proveedor de extracción (multi-modelo, FR-031)
+
+**Decision**: `EXTRACTION_PROVIDER` (`claude` | `openai` | `gemini` | `zai` | `qwen` | `kimi`) y `EXTRACTION_MODEL` como variables de entorno, validadas al arranque (constitution Principio VII: secretos y configuración vía env vars, fail-fast). Cada proveedor tiene su propia variable de API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ZAI_API_KEY`, `QWEN_API_KEY`, `KIMI_API_KEY`); el schema Zod de entorno exige solo la que corresponde al proveedor activo. Una fábrica en `ExtractionModule` decide, según `EXTRACTION_PROVIDER`, cuál implementación de `InvoiceExtractor` inyectar — el orquestador y el resto del sistema no saben qué proveedor está activo.
+
+**Arquitectura de adaptadores** — 3 implementaciones, no 6, porque 3 de los 6 proveedores exponen una API compatible con la de OpenAI (mismo formato de petición, cambia solo `baseURL`):
+
+- `ClaudeInvoiceExtractorAdapter` (ya existente) — SDK `@anthropic-ai/sdk`, `messages.parse()` + `zodOutputFormat`.
+- `OpenAIInvoiceExtractorAdapter` — SDK `openai`, `chat.completions.parse()` + `zodResponseFormat` (salida estructurada nativa vía JSON Schema estricto, igual de rigurosa que la de Claude).
+- `GeminiInvoiceExtractorAdapter` — SDK `@google/genai`, `generateContent()` con `responseMimeType: 'application/json'` + `responseJsonSchema` (generado desde el mismo schema Zod del dominio vía `z.toJSONSchema()`, nativo de Zod v4 — un solo schema, no uno por proveedor).
+- `OpenAICompatibleInvoiceExtractorAdapter` — genérico, reutilizado para `zai`, `qwen` y `kimi`: SDK `openai` apuntado a un `baseURL` distinto por proveedor. Usa `response_format: {type: 'json_object'}` (modo JSON básico, no JSON Schema estricto) en vez de `zodResponseFormat`, porque el soporte de JSON Schema estricto no está confirmado de forma uniforme en estos tres — el schema completo se describe en el system prompt en su lugar.
+
+**Rationale**: el puerto `InvoiceExtractor` (constitution Principio V) ya fue diseñado para esto — agregar proveedores es agregar adaptadores, no tocar dominio/orquestador/base de datos. Usar `response_format: json_object` (no estricto) para el adaptador genérico es una decisión de robustez, no de descuido: el dominio ya valida la salida de CUALQUIER adaptador con `validarExtraccion` antes de persistir (Principio III) — si un proveedor devuelve JSON mal formado o incompleto, esa segunda capa lo rechaza y el orquestador lo trata como fallo total (FR-013), exactamente igual que si Claude fallara. La solidez del sistema no depende de que cada proveedor tenga soporte perfecto de JSON Schema.
+
+**Valores de ejemplo verificados en julio 2026** (documentar en `.env.example` con advertencia de que los proveedores cambian nombres de modelo con frecuencia):
+
+- Z.ai: `baseURL=https://api.z.ai/api/paas/v4/`, modelo de ejemplo `glm-5v-turbo`.
+- Qwen/DashScope: `baseURL` depende de la región de la cuenta (p. ej. `https://dashscope-us.aliyuncs.com/compatible-mode/v1` para EE.UU.; verificar la propia en la consola de Alibaba Cloud), modelo de ejemplo `qwen3-vl-plus`.
+- Kimi/Moonshot: `baseURL=https://api.moonshot.ai/v1`, modelo de ejemplo `kimi-k3` (visión nativa).
+
+**Alternatives considered**: seis adaptadores completamente independientes — descartado, sería código casi idéntico repetido 3 veces para los proveedores compatibles con OpenAI, sin ningún beneficio. Un único adaptador "universal" con un `switch` interno por proveedor — descartado, mezclaría las dos SDKs nativas (Claude, Gemini) con la lógica del adaptador genérico y complicaría las pruebas de cada uno por separado; el patrón de puertos/adaptadores ya favorece archivos separados y pequeños.

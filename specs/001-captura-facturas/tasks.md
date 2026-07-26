@@ -111,6 +111,21 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 ---
 
+### Extensión de User Story 2 — Selección de proveedor de extracción (FR-031)
+
+**Goal**: el proveedor y modelo de extracción (Claude, OpenAI, Gemini, u otros compatibles con la API de OpenAI) se elige por configuración, sin tocar código — research.md § 10.
+
+- [X] T054 [US2] Ampliar el schema Zod de entorno con `EXTRACTION_PROVIDER`, `EXTRACTION_MODEL` y una API key por proveedor, exigiendo en el arranque solo la del proveedor activo, en `apps/api/src/config/env.schema.ts`
+- [X] T055 [P] [US2] Extraer el prompt de extracción (ya usado por Claude) a un módulo compartido por todos los adaptadores, en `apps/api/src/modules/extraction/extraction-prompt.ts`
+- [X] T056 [P] [US2] Adaptador `InvoiceExtractor` sobre OpenAI (`chat.completions.parse` + `zodResponseFormat`) en `apps/api/src/modules/extraction/openai-invoice-extractor.adapter.ts`
+- [X] T057 [P] [US2] Adaptador `InvoiceExtractor` sobre Google Gemini (`generateContent` + `responseJsonSchema` vía `z.toJSONSchema()`) en `apps/api/src/modules/extraction/gemini-invoice-extractor.adapter.ts`
+- [X] T058 [P] [US2] Adaptador genérico `InvoiceExtractor` para proveedores compatibles con la API de OpenAI (Z.ai, Qwen/DashScope, Kimi/Moonshot), configurable por `baseURL`/modelo/API key, en `apps/api/src/modules/extraction/openai-compatible-invoice-extractor.adapter.ts`
+- [X] T059 [US2] Fábrica de selección de adaptador según `EXTRACTION_PROVIDER` en `apps/api/src/modules/extraction/extraction.module.ts`
+
+**Checkpoint**: cambiar `EXTRACTION_PROVIDER` en `.env` y reiniciar cambia de proveedor sin editar código.
+
+---
+
 ## Phase 5: User Story 3 - Clasificación tributaria y elegibilidad (Priority: P3)
 
 **Goal**: cada documento queda clasificado por tipo y con una marca de elegibilidad tributaria calculada.

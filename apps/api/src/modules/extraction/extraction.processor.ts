@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   UMBRAL_CONFIANZA_BAJA,
   validarExtraccion,
@@ -7,10 +8,11 @@ import {
   type ExtractedInvoiceData,
   type InvoiceExtractor,
 } from '@myivo/domain';
+import type { Env } from '../../config/env.schema';
 import { FacturaRepository } from '../invoices/factura.repository';
 import { FileStorageService } from '../invoices/file-storage.service';
 import { decodificarCufeDesdeQr } from './cufe-decoder';
-import { MODELO_EXTRACCION, VERSION_PROMPT_EXTRACCION } from './claude-invoice-extractor.adapter';
+import { VERSION_PROMPT_EXTRACCION } from './extraction-prompt';
 import { INVOICE_EXTRACTOR } from './invoice-extractor.token';
 
 /**
@@ -23,11 +25,18 @@ import { INVOICE_EXTRACTOR } from './invoice-extractor.token';
 export class ExtractionProcessor {
   private readonly logger = new Logger(ExtractionProcessor.name);
 
+  private readonly versionModelo: string;
+
   constructor(
     @Inject(INVOICE_EXTRACTOR) private readonly extractor: InvoiceExtractor,
     private readonly facturaRepository: FacturaRepository,
     private readonly fileStorage: FileStorageService,
-  ) {}
+    configService: ConfigService<Env, true>,
+  ) {
+    const proveedor = configService.get('EXTRACTION_PROVIDER', { infer: true });
+    const modelo = configService.get('EXTRACTION_MODEL', { infer: true });
+    this.versionModelo = `${proveedor}:${modelo}`;
+  }
 
   /**
    * Nunca lanza — cualquier fallo (red, validación, lo que sea) termina en
@@ -82,7 +91,7 @@ export class ExtractionProcessor {
       await this.facturaRepository.registrarExtraccionCruda(facturaId, {
         jsonCrudo: datos,
         versionPrompt: VERSION_PROMPT_EXTRACCION,
-        versionModelo: MODELO_EXTRACCION,
+        versionModelo: this.versionModelo,
       });
 
       const necesitaRevision = this.necesitaRevision(datos, cufeOrigen);

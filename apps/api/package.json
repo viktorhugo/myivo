@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@google/genai": "^2.13.0",
     "@myivo/domain": "workspace:*",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",
@@ -24,6 +25,7 @@
     "argon2": "^0.45.1",
     "express-session": "^1.19.0",
     "jsqr": "^1.4.0",
+    "openai": "^6.49.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "sharp": "^0.35.3",
