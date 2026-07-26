@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UploadedFiles,
   UseGuards,
@@ -22,7 +23,8 @@ import { mimeTypeDeArchivo } from '../../common/mime';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { ExtractionProcessor } from '../extraction/extraction.processor';
 import { corregirCamposSchema, normalizarCorrecciones } from './dto/corregir-campos.dto';
-import { FacturaRepository } from './factura.repository';
+import { filtrarFacturasSchema } from './dto/filtrar-facturas.dto';
+import { FacturaRepository, type ResultadoListado } from './factura.repository';
 import { FileStorageService } from './file-storage.service';
 
 export interface FacturaDetalle extends Factura {
@@ -73,6 +75,17 @@ export class InvoicesController {
       });
     }
     return facturas;
+  }
+
+  /**
+   * Lista filtrable (FR-022): fechaDesde, fechaHasta, comercio, montoMin,
+   * montoMax, tipoDocumento, elegibilidad, estado — todos combinables.
+   * `sumaTotal` refleja el mismo filtro pero solo documentos en COP (FR-027).
+   */
+  @Get()
+  async listar(@Query() query: unknown): Promise<ResultadoListado> {
+    const filtros = filtrarFacturasSchema.parse(query);
+    return this.facturaRepository.listar(filtros);
   }
 
   /** Detalle completo: campos extraídos, confianzaCampos, ítems y correcciones previas (FR-024). */

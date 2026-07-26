@@ -20,6 +20,7 @@ import type {
   FacturaEstado as FacturaEstadoPrisma,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import type { FiltrosFactura } from './dto/filtrar-facturas.dto';
 
 const ESTADO_A_DOMINIO: Record<FacturaEstadoPrisma, FacturaEstado> = {
   recibida: 'recibida',
@@ -107,6 +108,13 @@ export interface ExtraccionCrudaInput {
   jsonCrudo: unknown;
   versionPrompt: string;
   versionModelo: string;
+}
+
+export interface ResultadoListado {
+  items: Factura[];
+  conteo: number;
+  /** Centavos. Solo suma documentos en COP (FR-027). */
+  sumaTotal: number;
 }
 
 function parsearEntero(valor: string): number {
@@ -207,6 +215,56 @@ export class FacturaRepository {
   async obtenerPorId(id: string): Promise<Factura | null> {
     const fila = await this.prisma.factura.findUnique({ where: { id } });
     return fila ? aDominio(fila) : null;
+  }
+
+  /**
+   * Lista filtrable (FR-022): todos los filtros son combinables (AND). El
+   * agregado `sumaTotal` refleja el mismo filtro pero solo suma documentos
+   * en COP (FR-027) — `conteo` sí incluye documentos en otras monedas,
+   * porque no es un agregado monetario.
+   */
+  async listar(filtros: FiltrosFactura): Promise<ResultadoListado> {
+    const where: Prisma.FacturaWhereInput = {};
+
+    if (filtros.fechaDesde || filtros.fechaHasta) {
+      const filtroFecha: Prisma.DateTimeNullableFilter = {};
+      if (filtros.fechaDesde) filtroFecha.gte = filtros.fechaDesde;
+      if (filtros.fechaHasta) filtroFecha.lte = filtros.fechaHasta;
+      where.fechaHoraCompra = filtroFecha;
+    }
+    if (filtros.comercio) {
+      where.comercioNombre = { contains: filtros.comercio, mode: 'insensitive' };
+    }
+    if (filtros.montoMin !== undefined || filtros.montoMax !== undefined) {
+      const filtroMonto: Prisma.IntNullableFilter = {};
+      if (filtros.montoMin !== undefined) filtroMonto.gte = filtros.montoMin;
+      if (filtros.montoMax !== undefined) filtroMonto.lte = filtros.montoMax;
+      where.totalCentavos = filtroMonto;
+    }
+    if (filtros.tipoDocumento) {
+      where.tipoDocumento = filtros.tipoDocumento;
+    }
+    if (filtros.elegibilidad !== undefined) {
+      where.elegibilidadTributaria = filtros.elegibilidad;
+    }
+    if (filtros.estado) {
+      where.estado = ESTADO_A_PRISMA[filtros.estado];
+    }
+
+    const [filas, conteo, agregado] = await Promise.all([
+      this.prisma.factura.findMany({ where, orderBy: { creadaEn: 'desc' } }),
+      this.prisma.factura.count({ where }),
+      this.prisma.factura.aggregate({
+        where: { ...where, moneda: 'COP' },
+        _sum: { totalCentavos: true },
+      }),
+    ]);
+
+    return {
+      items: filas.map(aDominio),
+      conteo,
+      sumaTotal: agregado._sum.totalCentavos ?? 0,
+    };
   }
 
   async obtenerItems(facturaId: string): Promise<ItemFactura[]> {

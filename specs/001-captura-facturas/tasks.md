@@ -152,9 +152,9 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 ### Implementación para User Story 4
 
-- [ ] T041 [US4] Endpoint `GET /invoices` con filtros combinables (fecha, comercio, monto, tipo, elegibilidad, estado) + agregado de conteo/suma en COP en `apps/api/src/modules/invoices/invoices.controller.ts` — FR-022/FR-023/FR-027
-- [ ] T042 [P] [US4] Página de listado — filtros, total agregado destacado, botón flotante de captura — en `apps/web/src/pages/Listado.tsx`
-- [ ] T043 [US4] Enlazar el detalle (T022/T034) desde la lista de resultados en `apps/web/src/pages/Listado.tsx`
+- [X] T041 [US4] Endpoint `GET /invoices` con filtros combinables (fecha, comercio, monto, tipo, elegibilidad, estado) + agregado de conteo/suma en COP en `apps/api/src/modules/invoices/invoices.controller.ts` — FR-022/FR-023/FR-027
+- [X] T042 [P] [US4] Página de listado — filtros, total agregado destacado, botón flotante de captura — en `apps/web/src/pages/Listado.tsx`
+- [X] T043 [US4] Enlazar el detalle (T022/T034) desde la lista de resultados en `apps/web/src/pages/Listado.tsx`
 
 **Checkpoint**: se puede responder "¿cuánto llevo elegible este año?" sin sumar a mano. Validar con `quickstart.md` § H4.
 

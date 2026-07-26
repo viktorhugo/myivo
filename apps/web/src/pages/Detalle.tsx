@@ -6,61 +6,18 @@ import {
   urlImagenFactura,
   type ConfianzaCamposDto,
   type FacturaDetalleDto,
-  type FacturaEstado,
-  type MedioPago,
-  type TipoDocumento,
 } from '../services/invoices';
-
-const ETIQUETA_ESTADO: Record<FacturaEstado, string> = {
-  recibida: 'Recibida',
-  procesando: 'Procesando',
-  extraída: 'Extraída',
-  necesita_revisión: 'Necesita revisión',
-  fallida: 'Fallida',
-};
-
-const ETIQUETA_MEDIO_PAGO: Record<MedioPago, string> = {
-  efectivo: 'Efectivo',
-  tarjeta_debito: 'Tarjeta débito',
-  tarjeta_credito: 'Tarjeta crédito',
-  transferencia_pse: 'Transferencia / PSE',
-  billetera_digital: 'Billetera digital',
-};
-
-const OPCIONES_MEDIO_PAGO = Object.keys(ETIQUETA_MEDIO_PAGO) as MedioPago[];
-
-const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
-  factura_electronica: 'Factura electrónica',
-  documento_equivalente_pos: 'Tiquete POS',
-  documento_soporte: 'Documento soporte',
-  otro: 'Otro',
-  desconocido: 'Desconocido',
-};
-
-const OPCIONES_TIPO_DOCUMENTO = Object.keys(ETIQUETA_TIPO_DOCUMENTO) as TipoDocumento[];
+import {
+  ETIQUETA_ESTADO,
+  ETIQUETA_MEDIO_PAGO,
+  ETIQUETA_TIPO_DOCUMENTO,
+  OPCIONES_MEDIO_PAGO,
+  OPCIONES_TIPO_DOCUMENTO,
+} from '../etiquetas';
+import { formatearCentavos, formatearFecha } from '../format';
 
 /** Debe coincidir con UMBRAL_CONFIANZA_BAJA en packages/domain/src/tax-rules/cuadre-monetario.ts. */
 const UMBRAL_CONFIANZA_BAJA = 0.7;
-
-function formatearCentavos(centavos: number | null, moneda: string): string {
-  if (centavos === null) {
-    return '—';
-  }
-  const valor = centavos / 100;
-  try {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: moneda }).format(valor);
-  } catch {
-    return `${valor.toFixed(2)} ${moneda}`;
-  }
-}
-
-function formatearFecha(iso: string | null): string {
-  if (!iso) {
-    return '—';
-  }
-  const fecha = new Date(iso);
-  return Number.isNaN(fecha.getTime()) ? iso : fecha.toLocaleString('es-CO');
-}
 
 function colorConfianza(valor: number | undefined): string {
   if (valor === undefined) {

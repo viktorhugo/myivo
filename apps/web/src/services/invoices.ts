@@ -106,6 +106,46 @@ export async function subirFacturas(archivos: File[]): Promise<FacturaDto[]> {
   return parsearRespuesta<FacturaDto[]>(response);
 }
 
+export interface FiltrosFacturaParams {
+  fechaDesde?: string;
+  fechaHasta?: string;
+  comercio?: string;
+  /** Pesos, no centavos — se convierte antes de mandarlo (la API sí trabaja en centavos). */
+  montoMinPesos?: number;
+  montoMaxPesos?: number;
+  tipoDocumento?: TipoDocumento;
+  elegibilidad?: boolean;
+  estado?: FacturaEstado;
+}
+
+export interface ResultadoListadoDto {
+  items: FacturaDto[];
+  conteo: number;
+  /** Centavos — solo incluye documentos en COP (FR-027). */
+  sumaTotal: number;
+}
+
+export async function listarFacturas(filtros: FiltrosFacturaParams): Promise<ResultadoListadoDto> {
+  const params = new URLSearchParams();
+  if (filtros.fechaDesde) params.set('fechaDesde', filtros.fechaDesde);
+  if (filtros.fechaHasta) params.set('fechaHasta', filtros.fechaHasta);
+  if (filtros.comercio) params.set('comercio', filtros.comercio);
+  if (filtros.montoMinPesos !== undefined) {
+    params.set('montoMin', String(Math.round(filtros.montoMinPesos * 100)));
+  }
+  if (filtros.montoMaxPesos !== undefined) {
+    params.set('montoMax', String(Math.round(filtros.montoMaxPesos * 100)));
+  }
+  if (filtros.tipoDocumento) params.set('tipoDocumento', filtros.tipoDocumento);
+  if (filtros.elegibilidad !== undefined) params.set('elegibilidad', String(filtros.elegibilidad));
+  if (filtros.estado) params.set('estado', filtros.estado);
+
+  const response = await fetch(`${API_BASE_URL}/invoices?${params.toString()}`, {
+    credentials: 'include',
+  });
+  return parsearRespuesta<ResultadoListadoDto>(response);
+}
+
 export async function obtenerFactura(id: string): Promise<FacturaDetalleDto> {
   const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
     credentials: 'include',

@@ -1,15 +1,14 @@
 import { useState, type ChangeEvent } from 'react';
 import { subirFacturas, type FacturaDto } from '../services/invoices';
+import { ETIQUETA_ESTADO } from '../etiquetas';
 
-const ETIQUETA_ESTADO: Record<FacturaDto['estado'], string> = {
-  recibida: 'Recibida',
-  procesando: 'Procesando',
-  extraída: 'Extraída',
-  necesita_revisión: 'Necesita revisión',
-  fallida: 'Fallida',
-};
-
-export default function Captura({ onSeleccionar }: { onSeleccionar: (facturaId: string) => void }) {
+export default function Captura({
+  onSeleccionar,
+  onVolver,
+}: {
+  onSeleccionar: (facturaId: string) => void;
+  onVolver: () => void;
+}) {
   const [facturas, setFacturas] = useState<FacturaDto[]>([]);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +34,10 @@ export default function Captura({ onSeleccionar }: { onSeleccionar: (facturaId: 
 
   return (
     <section>
+      <button type="button" onClick={onVolver}>
+        ← Volver al listado
+      </button>
+
       <h1>Capturar facturas</h1>
 
       <label>
