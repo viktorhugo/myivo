@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
-import sharp from 'sharp';
 import { extractedInvoiceDataSchema, type ExtractedInvoiceData, type InvoiceExtractor } from '@myivo/domain';
 import type { Env } from '../../config/env.schema';
-import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE } from './extraction-prompt';
+import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE, parsearJsonDeRespuesta } from './extraction-prompt';
+import { decodificarImagen } from './image-decoder';
 
 /**
  * Adaptador de `InvoiceExtractor` sobre Google Gemini — research.md § 10.
@@ -20,6 +20,12 @@ import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE } from './extraction-
 
 const RESPONSE_JSON_SCHEMA = z.toJSONSchema(extractedInvoiceDataSchema);
 
+// Generoso a propósito — ver claude-invoice-extractor.adapter.ts: el
+// razonamiento interno del modelo puede consumir varios miles de tokens
+// antes de escribir la respuesta, y una factura real puede tener muchos
+// ítems.
+const MAX_OUTPUT_TOKENS = 16384;
+
 @Injectable()
 export class GeminiInvoiceExtractorAdapter implements InvoiceExtractor {
   private readonly client: GoogleGenAI;
@@ -31,7 +37,7 @@ export class GeminiInvoiceExtractorAdapter implements InvoiceExtractor {
   }
 
   async extract(image: Buffer): Promise<ExtractedInvoiceData> {
-    const jpeg = await sharp(image).jpeg().toBuffer();
+    const jpeg = await (await decodificarImagen(image)).jpeg().toBuffer();
 
     const response = await this.client.models.generateContent({
       model: this.modelo,
@@ -43,6 +49,7 @@ export class GeminiInvoiceExtractorAdapter implements InvoiceExtractor {
         systemInstruction: EXTRACTION_SYSTEM_PROMPT,
         responseMimeType: 'application/json',
         responseJsonSchema: RESPONSE_JSON_SCHEMA,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
       },
     });
 
@@ -50,6 +57,6 @@ export class GeminiInvoiceExtractorAdapter implements InvoiceExtractor {
     if (!texto) {
       throw new Error('Gemini no devolvió contenido de texto');
     }
-    return JSON.parse(texto) as ExtractedInvoiceData;
+    return parsearJsonDeRespuesta(texto) as ExtractedInvoiceData;
   }
 }

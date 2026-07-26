@@ -1,28 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-import sharp from 'sharp';
-import {
-  extractedInvoiceDataSchema,
-  type ExtractedInvoiceData,
-  type InvoiceExtractor,
-} from '@myivo/domain';
+import type { ExtractedInvoiceData, InvoiceExtractor } from '@myivo/domain';
 import type { Env } from '../../config/env.schema';
-import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE } from './extraction-prompt';
+import {
+  EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA,
+  EXTRACTION_USER_MESSAGE,
+  parsearJsonDeRespuesta,
+} from './extraction-prompt';
+import { decodificarImagen } from './image-decoder';
 
 /**
- * Adaptador de `InvoiceExtractor` sobre Claude API — research.md § 3.
- * `output_config.format` (vía `zodOutputFormat`) en vez de `tool_use`: no hay
- * ninguna herramienta que el modelo decida invocar, siempre se quiere el
- * mismo objeto de vuelta con la misma forma.
+ * Adaptador de `InvoiceExtractor` sobre Claude API — research.md § 3 y § 10.
+ *
+ * NO usa `output_config.format` (salida estructurada estricta): verificado
+ * con una foto real (tiquete D1, 21 ítems) que la decodificación restringida
+ * por JSON Schema se corta a mitad del arreglo de ítems — `stop_reason:
+ * "end_turn"` pero el JSON queda sintácticamente incompleto, reproducible
+ * incluso duplicando `max_tokens`. La MISMA extracción, pidiendo el JSON por
+ * instrucción en el prompt en vez de por schema estricto, salió completa y
+ * válida. Se usa ese enfoque aquí — igual que el adaptador genérico
+ * compatible con OpenAI — confiando en que `validarExtraccion()` en el
+ * orquestador (constitution Principio III) es la validación real de todos
+ * modos, sin importar qué tan estricto sea el mecanismo de cada proveedor.
  *
  * El prompt caching de research.md § 3 (`cache_control` sobre el system
  * prompt) es T052 (Polish) — no se implementa aquí para no adelantar una
  * tarea de otra fase.
  */
 
-const MAX_TOKENS_SALIDA = 8192;
+// Generoso a propósito: el "thinking" adaptativo de Sonnet 5 puede consumir
+// varios miles de tokens antes de escribir la respuesta (verificado: hasta
+// ~7700 en una sola llamada), y una factura real puede tener muchos ítems.
+const MAX_TOKENS_SALIDA = 16384;
 
 @Injectable()
 export class ClaudeInvoiceExtractorAdapter implements InvoiceExtractor {
@@ -35,16 +45,16 @@ export class ClaudeInvoiceExtractorAdapter implements InvoiceExtractor {
   }
 
   async extract(image: Buffer): Promise<ExtractedInvoiceData> {
-    // Normaliza cualquier formato de entrada soportado por sharp (jpg/png/webp/
-    // heic-si-el-build-lo-soporta) a JPEG, el formato que se envía a la API.
-    // El archivo original en disco nunca se toca (constitution Principio I) —
-    // esto es solo el buffer en memoria que viaja hacia Claude.
-    const jpeg = await sharp(image).jpeg().toBuffer();
+    // Normaliza cualquier formato de entrada soportado (jpg/png/webp/heic) a
+    // JPEG, el formato que se envía a la API. El archivo original en disco
+    // nunca se toca (constitution Principio I) — esto es solo el buffer en
+    // memoria que viaja hacia Claude.
+    const jpeg = await (await decodificarImagen(image)).jpeg().toBuffer();
 
-    const mensaje = await this.client.messages.parse({
+    const mensaje = await this.client.messages.create({
       model: this.modelo,
       max_tokens: MAX_TOKENS_SALIDA,
-      system: EXTRACTION_SYSTEM_PROMPT,
+      system: EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA,
       messages: [
         {
           role: 'user',
@@ -57,14 +67,12 @@ export class ClaudeInvoiceExtractorAdapter implements InvoiceExtractor {
           ],
         },
       ],
-      output_config: {
-        format: zodOutputFormat(extractedInvoiceDataSchema),
-      },
     });
 
-    if (!mensaje.parsed_output) {
-      throw new Error('Claude no devolvió una salida estructurada parseable');
+    const bloqueTexto = mensaje.content.find((bloque) => bloque.type === 'text');
+    if (!bloqueTexto) {
+      throw new Error('Claude no devolvió contenido de texto');
     }
-    return mensaje.parsed_output;
+    return parsearJsonDeRespuesta(bloqueTexto.text) as ExtractedInvoiceData;
   }
 }

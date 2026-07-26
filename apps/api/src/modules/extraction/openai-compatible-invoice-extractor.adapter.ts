@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { z } from 'zod';
-import sharp from 'sharp';
-import { extractedInvoiceDataSchema, type ExtractedInvoiceData, type InvoiceExtractor } from '@myivo/domain';
+import type { ExtractedInvoiceData, InvoiceExtractor } from '@myivo/domain';
 import type { Env, ExtractionProvider } from '../../config/env.schema';
-import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE } from './extraction-prompt';
+import {
+  EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA,
+  EXTRACTION_USER_MESSAGE,
+  parsearJsonDeRespuesta,
+} from './extraction-prompt';
+import { decodificarImagen } from './image-decoder';
 
 /**
  * Adaptador genérico de `InvoiceExtractor` para proveedores que exponen una
@@ -43,9 +46,10 @@ const PRESETS: Partial<Record<ExtractionProvider, PresetProveedorCompatible>> = 
 // Terceros que clonan la API de OpenAI suelen replicar la forma estable de
 // hace tiempo (max_tokens), no necesariamente el rename reciente de OpenAI
 // (max_completion_tokens) — más compatible para este adaptador genérico.
-const MAX_TOKENS_SALIDA = 8192;
-
-const RESPONSE_JSON_SCHEMA_TEXTO = JSON.stringify(z.toJSONSchema(extractedInvoiceDataSchema));
+// Generoso a propósito — ver claude-invoice-extractor.adapter.ts sobre por
+// qué el presupuesto de tokens debe cubrir razonamiento interno + un arreglo
+// de ítems potencialmente largo.
+const MAX_TOKENS_SALIDA = 16384;
 
 @Injectable()
 export class OpenAICompatibleInvoiceExtractorAdapter implements InvoiceExtractor {
@@ -69,16 +73,13 @@ export class OpenAICompatibleInvoiceExtractorAdapter implements InvoiceExtractor
   }
 
   async extract(image: Buffer): Promise<ExtractedInvoiceData> {
-    const jpeg = await sharp(image).jpeg().toBuffer();
+    const jpeg = await (await decodificarImagen(image)).jpeg().toBuffer();
 
     const completion = await this.client.chat.completions.create({
       model: this.modelo,
       max_tokens: MAX_TOKENS_SALIDA,
       messages: [
-        {
-          role: 'system',
-          content: `${EXTRACTION_SYSTEM_PROMPT}\n\nResponde ÚNICAMENTE con un objeto JSON que cumpla exactamente este JSON Schema, sin texto ni comentarios antes o después:\n${RESPONSE_JSON_SCHEMA_TEXTO}`,
-        },
+        { role: 'system', content: EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA },
         {
           role: 'user',
           content: [
@@ -97,6 +98,6 @@ export class OpenAICompatibleInvoiceExtractorAdapter implements InvoiceExtractor
     if (!texto) {
       throw new Error('El proveedor no devolvió contenido de texto');
     }
-    return JSON.parse(texto) as ExtractedInvoiceData;
+    return parsearJsonDeRespuesta(texto) as ExtractedInvoiceData;
   }
 }

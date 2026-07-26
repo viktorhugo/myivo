@@ -1,3 +1,6 @@
+import { z } from 'zod';
+import { extractedInvoiceDataSchema } from '@myivo/domain';
+
 /**
  * Prompt de extracción compartido por todos los adaptadores de
  * `InvoiceExtractor` (Claude, OpenAI, Gemini, y los compatibles con OpenAI) —
@@ -25,3 +28,31 @@ export const EXTRACTION_SCHEMA_NAME = 'datos_factura';
 
 /** Versión del prompt de arriba — sube este número si el texto cambia de forma significativa (queda en ExtraccionCruda para trazabilidad). */
 export const VERSION_PROMPT_EXTRACCION = 'v1';
+
+const RESPONSE_JSON_SCHEMA_TEXTO = JSON.stringify(z.toJSONSchema(extractedInvoiceDataSchema));
+
+/**
+ * Prompt + JSON Schema embebido, para proveedores que reciben el JSON por
+ * instrucción en vez de por decodificación restringida (`json_object`, no
+ * `json_schema` estricto). Usado por Claude (ver
+ * claude-invoice-extractor.adapter.ts para el porqué: la decodificación
+ * restringida de Anthropic se corta a mitad de un arreglo largo de ítems en
+ * facturas reales con muchas líneas — verificado con un tiquete real de 21
+ * ítems) y por el adaptador genérico compatible con OpenAI (research.md § 10,
+ * soporte de JSON Schema estricto no confirmado de forma uniforme ahí).
+ */
+export const EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA = `${EXTRACTION_SYSTEM_PROMPT}\n\nResponde ÚNICAMENTE con un objeto JSON que cumpla exactamente este JSON Schema, sin texto ni comentarios antes o después, y SIN bloque de código markdown (nunca uses \`\`\`):\n${RESPONSE_JSON_SCHEMA_TEXTO}`;
+
+/**
+ * Los modelos a veces envuelven el JSON en un bloque de código markdown
+ * (```json ... ```) a pesar de que el prompt pida lo contrario — verificado
+ * con Claude en una respuesta real. Se limpia antes de parsear en vez de
+ * confiar solo en que el modelo siga la instrucción al pie de la letra.
+ */
+export function parsearJsonDeRespuesta(texto: string): unknown {
+  const limpio = texto
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  return JSON.parse(limpio);
+}

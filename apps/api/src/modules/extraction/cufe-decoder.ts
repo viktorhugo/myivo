@@ -1,6 +1,6 @@
-import sharp from 'sharp';
 import jsQR from 'jsqr';
 import type { CufeOrigen } from '@myivo/domain';
+import { decodificarImagen } from './image-decoder';
 
 export interface CufeDecodificado {
   cufe: string;
@@ -18,7 +18,7 @@ export interface CufeDecodificado {
 export async function decodificarCufeDesdeQr(imagen: Buffer): Promise<CufeDecodificado | null> {
   let pixeles: { data: Buffer; info: { width: number; height: number } };
   try {
-    pixeles = await sharp(imagen).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    pixeles = await (await decodificarImagen(imagen)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   } catch {
     return null;
   }
