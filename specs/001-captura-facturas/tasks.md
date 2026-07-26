@@ -134,11 +134,11 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 ### Implementación para User Story 3
 
-- [ ] T036 [P] [US3] Regla de dominio pura de clasificación por tipo de documento (taxonomía de 5 tipos), con test unitario, en `packages/domain/src/tax-rules/clasificacion-documento.ts` — constitution Principio IV
-- [ ] T037 [P] [US3] Regla de dominio pura de elegibilidad tributaria (tipo de documento + identificación + medio de pago → elegible/no + motivo), con tests unitarios cubriendo los 4 escenarios del spec y cita de fuente normativa en comentario, en `packages/domain/src/tax-rules/elegibilidad.ts` — constitution Principio IV, FR-015 a FR-018
-- [ ] T038 [US3] Integrar clasificación + elegibilidad en el orquestador de extracción (T031): se calculan automáticamente al pasar a `extraída`
-- [ ] T039 [US3] Recalcular elegibilidad automáticamente al guardar una corrección manual que afecte campos relevantes, en el endpoint de T032 (FR-017)
-- [ ] T040 [P] [US3] Mostrar marca de elegibilidad + motivo en `apps/web/src/pages/Detalle.tsx`, con el aviso "el sistema organiza, no emite concepto tributario" — constitution Principio IV
+- [X] T036 [P] [US3] Regla de dominio pura de clasificación por tipo de documento (taxonomía de 5 tipos), con test unitario, en `packages/domain/src/tax-rules/clasificacion-documento.ts` — constitution Principio IV
+- [X] T037 [P] [US3] Regla de dominio pura de elegibilidad tributaria (tipo de documento + identificación + medio de pago → elegible/no + motivo), con tests unitarios cubriendo los 4 escenarios del spec y cita de fuente normativa en comentario, en `packages/domain/src/tax-rules/elegibilidad.ts` — constitution Principio IV, FR-015 a FR-018
+- [X] T038 [US3] Integrar clasificación + elegibilidad en el orquestador de extracción (T031): se calculan automáticamente al terminar la extracción (tanto si queda `extraída` como `necesita_revisión` — ambas ya tienen datos que clasificar)
+- [X] T039 [US3] Recalcular elegibilidad automáticamente al guardar una corrección manual que afecte campos relevantes, en el endpoint de T032 (FR-017)
+- [X] T040 [P] [US3] Mostrar marca de elegibilidad + motivo en `apps/web/src/pages/Detalle.tsx`, con el aviso "el sistema organiza, no emite concepto tributario" — constitution Principio IV
 
 **Checkpoint**: cada factura extraída queda clasificada y con elegibilidad calculada. Validar con `quickstart.md` § H3.
 

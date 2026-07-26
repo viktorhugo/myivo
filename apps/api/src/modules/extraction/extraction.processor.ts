@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  clasificarDocumento,
+  evaluarElegibilidad2026,
   UMBRAL_CONFIANZA_BAJA,
   validarExtraccion,
   verificarCuadreMonetario,
@@ -26,6 +28,7 @@ export class ExtractionProcessor {
   private readonly logger = new Logger(ExtractionProcessor.name);
 
   private readonly versionModelo: string;
+  private readonly identificacionesPropias: readonly string[];
 
   constructor(
     @Inject(INVOICE_EXTRACTOR) private readonly extractor: InvoiceExtractor,
@@ -36,6 +39,7 @@ export class ExtractionProcessor {
     const proveedor = configService.get('EXTRACTION_PROVIDER', { infer: true });
     const modelo = configService.get('EXTRACTION_MODEL', { infer: true });
     this.versionModelo = `${proveedor}:${modelo}`;
+    this.identificacionesPropias = configService.get('MIS_IDENTIFICACIONES', { infer: true });
   }
 
   /**
@@ -60,6 +64,19 @@ export class ExtractionProcessor {
 
       const { cufe, cufeOrigen } = this.resolverCufe(cufePorQr?.cufe ?? null, datos.cufeImpreso);
 
+      // Clasificación tributaria (US3, constitution Principio IV): reglas
+      // determinísticas del dominio, nunca una opinión del LLM.
+      const tipoDocumento = clasificarDocumento({
+        cufe,
+        comercioNombre: datos.comercioNombre,
+        totalCentavos: datos.totalCentavos,
+        items: datos.items,
+      });
+      const elegibilidad = evaluarElegibilidad2026(
+        { tipoDocumento, adquirienteIdentificacion: datos.adquirienteIdentificacion, medioPago: datos.medioPago },
+        this.identificacionesPropias,
+      );
+
       await this.facturaRepository.guardarResultadoExtraccion(
         facturaId,
         {
@@ -78,6 +95,9 @@ export class ExtractionProcessor {
           cufe,
           cufeOrigen,
           confianzaCampos: datos.confianzaCampos,
+          tipoDocumento,
+          elegibilidadTributaria: elegibilidad.elegible,
+          elegibilidadMotivo: elegibilidad.motivo,
         },
         datos.items.map((item) => ({
           descripcion: item.descripcion,

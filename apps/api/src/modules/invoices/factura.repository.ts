@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  evaluarElegibilidad2026,
   medioPagoSchema,
+  tipoDocumentoSchema,
   transicionar,
   type ArchivoDerivado,
   type ConfianzaCampos,
@@ -10,6 +12,7 @@ import {
   type ItemFactura,
   type IvaTarifa,
   type MedioPago,
+  type TipoDocumento,
 } from '@myivo/domain';
 import { Prisma } from '@prisma/client';
 import type {
@@ -67,12 +70,15 @@ function aDominio(fila: FacturaPrisma): Factura {
     cufe: fila.cufe,
     cufeOrigen: fila.cufeOrigen,
     confianzaCampos: fila.confianzaCampos as unknown as ConfianzaCampos,
+    tipoDocumento: fila.tipoDocumento,
+    elegibilidadTributaria: fila.elegibilidadTributaria,
+    elegibilidadMotivo: fila.elegibilidadMotivo,
     creadaEn: fila.creadaEn,
     actualizadaEn: fila.actualizadaEn,
   };
 }
 
-/** Campos que produce la extracción (US2) — ver `data-model.md` § Factura. */
+/** Campos que produce la extracción (US2) + clasificación tributaria (US3) — ver `data-model.md` § Factura. */
 export type CamposExtraidosFactura = Pick<
   Factura,
   | 'comercioNombre'
@@ -90,6 +96,9 @@ export type CamposExtraidosFactura = Pick<
   | 'cufe'
   | 'cufeOrigen'
   | 'confianzaCampos'
+  | 'tipoDocumento'
+  | 'elegibilidadTributaria'
+  | 'elegibilidadMotivo'
 >;
 
 export type ItemFacturaInput = Omit<ItemFactura, 'id' | 'facturaId'>;
@@ -124,6 +133,14 @@ function parsearMedioPago(valor: string): MedioPago {
   return resultado.data;
 }
 
+function parsearTipoDocumento(valor: string): TipoDocumento {
+  const resultado = tipoDocumentoSchema.safeParse(valor);
+  if (!resultado.success) {
+    throw new BadRequestException(`tipoDocumento inválido: "${valor}"`);
+  }
+  return resultado.data;
+}
+
 function parsearTexto(valor: string): string {
   return valor;
 }
@@ -154,7 +171,17 @@ const CAMPOS_CORREGIBLES: Record<
   adquirienteNombre: { columna: 'adquirienteNombre', parsear: parsearTexto },
   adquirienteIdentificacion: { columna: 'adquirienteIdentificacion', parsear: parsearTexto },
   cufe: { columna: 'cufe', parsear: parsearTexto },
+  // NO incluir elegibilidadTributaria/elegibilidadMotivo aquí — son siempre
+  // CALCULADOS (FR-016), nunca editables a mano.
+  tipoDocumento: { columna: 'tipoDocumento', parsear: parsearTipoDocumento },
 };
+
+/** Columnas que alimentan el cálculo de elegibilidad (FR-015) — corregirlas dispara el recálculo (FR-017). */
+const CAMPOS_QUE_AFECTAN_ELEGIBILIDAD = new Set<keyof Prisma.FacturaUpdateInput>([
+  'tipoDocumento',
+  'adquirienteIdentificacion',
+  'medioPago',
+]);
 
 function serializarValorOriginal(valor: unknown): string {
   if (valor === null || valor === undefined) {
@@ -261,6 +288,9 @@ export class FacturaRepository {
           cufe: campos.cufe,
           cufeOrigen: campos.cufeOrigen,
           confianzaCampos: campos.confianzaCampos as unknown as Prisma.InputJsonValue,
+          tipoDocumento: campos.tipoDocumento,
+          elegibilidadTributaria: campos.elegibilidadTributaria,
+          elegibilidadMotivo: campos.elegibilidadMotivo,
         },
       }),
     ]);
@@ -282,12 +312,16 @@ export class FacturaRepository {
   /**
    * Aplica una corrección manual a un campo (FR-011/FR-012): guarda el valor
    * extraído original (antes de sobrescribirlo) en `CorreccionManual` y
-   * actualiza la Factura, en una sola transacción.
+   * actualiza la Factura. Si el campo corregido alimenta la elegibilidad
+   * (`tipoDocumento`, `adquirienteIdentificacion`, `medioPago`), recalcula y
+   * persiste `elegibilidadTributaria`/`elegibilidadMotivo` en la misma
+   * transacción (FR-017) — nunca queda un estado intermedio inconsistente.
    */
   async aplicarCorreccion(
     facturaId: string,
     campo: string,
     valorCorregido: string,
+    identificacionesPropias: readonly string[],
   ): Promise<Factura> {
     const definicion = CAMPOS_CORREGIBLES[campo];
     if (!definicion) {
@@ -304,15 +338,37 @@ export class FacturaRepository {
       actual[definicion.columna as keyof FacturaPrisma],
     );
 
-    const [, fila] = await this.prisma.$transaction([
-      this.prisma.correccionManual.create({
+    const fila = await this.prisma.$transaction(async (tx) => {
+      await tx.correccionManual.create({
         data: { facturaId, campo, valorExtraidoOriginal: valorOriginalTexto, valorCorregido },
-      }),
-      this.prisma.factura.update({
+      });
+
+      let filaActualizada = await tx.factura.update({
         where: { id: facturaId },
         data: { [definicion.columna]: valorParseado },
-      }),
-    ]);
+      });
+
+      if (CAMPOS_QUE_AFECTAN_ELEGIBILIDAD.has(definicion.columna)) {
+        const resultado = evaluarElegibilidad2026(
+          {
+            tipoDocumento: filaActualizada.tipoDocumento ?? 'desconocido',
+            adquirienteIdentificacion: filaActualizada.adquirienteIdentificacion,
+            medioPago: filaActualizada.medioPago,
+          },
+          identificacionesPropias,
+        );
+        filaActualizada = await tx.factura.update({
+          where: { id: facturaId },
+          data: {
+            elegibilidadTributaria: resultado.elegible,
+            elegibilidadMotivo: resultado.motivo,
+          },
+        });
+      }
+
+      return filaActualizada;
+    });
+
     return aDominio(fila);
   }
 }

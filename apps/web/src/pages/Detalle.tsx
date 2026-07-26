@@ -8,6 +8,7 @@ import {
   type FacturaDetalleDto,
   type FacturaEstado,
   type MedioPago,
+  type TipoDocumento,
 } from '../services/invoices';
 
 const ETIQUETA_ESTADO: Record<FacturaEstado, string> = {
@@ -27,6 +28,16 @@ const ETIQUETA_MEDIO_PAGO: Record<MedioPago, string> = {
 };
 
 const OPCIONES_MEDIO_PAGO = Object.keys(ETIQUETA_MEDIO_PAGO) as MedioPago[];
+
+const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
+  factura_electronica: 'Factura electrónica',
+  documento_equivalente_pos: 'Tiquete POS',
+  documento_soporte: 'Documento soporte',
+  otro: 'Otro',
+  desconocido: 'Desconocido',
+};
+
+const OPCIONES_TIPO_DOCUMENTO = Object.keys(ETIQUETA_TIPO_DOCUMENTO) as TipoDocumento[];
 
 /** Debe coincidir con UMBRAL_CONFIANZA_BAJA en packages/domain/src/tax-rules/cuadre-monetario.ts. */
 const UMBRAL_CONFIANZA_BAJA = 0.7;
@@ -89,11 +100,18 @@ interface DefinicionCampo {
   etiqueta: string;
   valorMostrado: string;
   valorEdicion: string;
-  tipo: 'texto' | 'numero' | 'fecha' | 'medioPago';
+  tipo: 'texto' | 'numero' | 'fecha' | 'medioPago' | 'tipoDocumento';
 }
 
 function construirCampos(factura: FacturaDetalleDto): DefinicionCampo[] {
   return [
+    {
+      campoPublico: 'tipoDocumento',
+      etiqueta: 'Tipo de documento',
+      valorMostrado: factura.tipoDocumento ? ETIQUETA_TIPO_DOCUMENTO[factura.tipoDocumento] : '—',
+      valorEdicion: factura.tipoDocumento ?? '',
+      tipo: 'tipoDocumento',
+    },
     {
       campoPublico: 'comercioNombre',
       campoConfianza: 'comercioNombre',
@@ -238,6 +256,15 @@ function FilaCampoEditable({
                   </option>
                 ))}
               </select>
+            ) : definicion.tipo === 'tipoDocumento' ? (
+              <select value={valor} onChange={(e) => setValor(e.target.value)}>
+                <option value="">—</option>
+                {OPCIONES_TIPO_DOCUMENTO.map((opcion) => (
+                  <option key={opcion} value={opcion}>
+                    {ETIQUETA_TIPO_DOCUMENTO[opcion]}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input value={valor} onChange={(e) => setValor(e.target.value)} disabled={guardando} />
             )}
@@ -329,6 +356,22 @@ export default function Detalle({ facturaId, onVolver }: { facturaId: string; on
       </h1>
 
       {error && <p role="alert">{error}</p>}
+
+      {factura.elegibilidadTributaria !== null && (
+        <div style={{ border: '1px solid #ccc', borderRadius: 4, padding: 12, margin: '12px 0' }}>
+          <p style={{ margin: 0 }}>
+            <strong>
+              {factura.elegibilidadTributaria
+                ? 'Elegible para deducción del 1%'
+                : factura.elegibilidadMotivo}
+            </strong>
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: '0.85em', color: '#666' }}>
+            El sistema organiza, no emite concepto tributario — revisa esta clasificación con tu
+            contador antes de usarla en tu declaración de renta.
+          </p>
+        </div>
+      )}
 
       {factura.estado === 'fallida' && (
         <p>

@@ -29,6 +29,20 @@ const baseEnvSchema = z.object({
     .min(1, 'Debe ser un hash Argon2, nunca la contraseña en texto plano'),
   IMAGE_STORAGE_PATH: z.string().min(1).default('./data/invoices'),
 
+  // Número(s) de identificación del usuario (cédula y/o NIT), separados por
+  // coma — contra esto se compara `adquirienteIdentificacion` para calcular
+  // elegibilidad tributaria (FR-015, spec.md § Assumptions). Requerido y sin
+  // default: sin esto, todo documento sería "no elegible" en silencio.
+  MIS_IDENTIFICACIONES: z
+    .string()
+    .min(1, 'Configura al menos tu cédula o NIT — sin esto ningún documento puede ser elegible')
+    .transform((valor) =>
+      valor
+        .split(',')
+        .map((identificacion) => identificacion.trim())
+        .filter((identificacion) => identificacion.length > 0),
+    ),
+
   EXTRACTION_PROVIDER: extractionProviderSchema.default('claude'),
   EXTRACTION_MODEL: z.string().min(1).default('claude-sonnet-5'),
 

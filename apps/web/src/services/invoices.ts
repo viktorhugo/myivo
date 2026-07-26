@@ -6,6 +6,13 @@ export type MedioPago =
 
 export type CufeOrigen = 'qr' | 'ocr_respaldo';
 
+export type TipoDocumento =
+  | 'factura_electronica'
+  | 'documento_equivalente_pos'
+  | 'documento_soporte'
+  | 'otro'
+  | 'desconocido';
+
 export interface ArchivoDerivadoDto {
   ruta: string;
   tipoTransformacion: string;
@@ -40,6 +47,10 @@ export interface FacturaDto {
   cufe: string | null;
   cufeOrigen: CufeOrigen | null;
   confianzaCampos: ConfianzaCamposDto;
+
+  tipoDocumento: TipoDocumento | null;
+  elegibilidadTributaria: boolean | null;
+  elegibilidadMotivo: string | null;
 
   creadaEn: string;
   actualizadaEn: string;

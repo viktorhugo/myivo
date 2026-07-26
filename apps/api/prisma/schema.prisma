@@ -34,9 +34,17 @@ enum CufeOrigen {
   ocr_respaldo
 }
 
-// Campos de captura (US1) + extracción (US2). Los campos de clasificación
-// tributaria (tipoDocumento, elegibilidad*) y el soft-delete se agregan en
-// User Story 3 y 4/5 — ver data-model.md.
+// Taxonomía cerrada — constitution Principio IV.
+enum TipoDocumento {
+  factura_electronica
+  documento_equivalente_pos
+  documento_soporte
+  otro
+  desconocido
+}
+
+// Campos de captura (US1) + extracción (US2) + clasificación tributaria
+// (US3). El soft-delete se agrega en User Story 4/5 — ver data-model.md.
 model Factura {
   id                 String        @id @default(uuid())
   estado             FacturaEstado @default(recibida)
@@ -65,6 +73,11 @@ model Factura {
 
   /// Mapa { nombreCampo: nivelConfianza (0-1) } — ver ConfianzaCampos en el dominio.
   confianzaCampos Json @default("{}")
+
+  tipoDocumento          TipoDocumento?
+  /// Siempre CALCULADO por la regla de elegibilidad (FR-016) — nunca se escribe desde otra ruta.
+  elegibilidadTributaria Boolean?
+  elegibilidadMotivo     String?
 
   items               ItemFactura[]
   correcciones        CorreccionManual[]

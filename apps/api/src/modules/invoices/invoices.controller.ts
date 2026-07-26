@@ -14,8 +14,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
 import type { CorreccionManual, Factura, ItemFactura } from '@myivo/domain';
 import type { Response } from 'express';
+import type { Env } from '../../config/env.schema';
 import { mimeTypeDeArchivo } from '../../common/mime';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { ExtractionProcessor } from '../extraction/extraction.processor';
@@ -33,11 +35,16 @@ export interface FacturaDetalle extends Factura {
 export class InvoicesController {
   private readonly logger = new Logger(InvoicesController.name);
 
+  private readonly identificacionesPropias: readonly string[];
+
   constructor(
     private readonly facturaRepository: FacturaRepository,
     private readonly fileStorage: FileStorageService,
     private readonly extractionProcessor: ExtractionProcessor,
-  ) {}
+    configService: ConfigService<Env, true>,
+  ) {
+    this.identificacionesPropias = configService.get('MIS_IDENTIFICACIONES', { infer: true });
+  }
 
   /**
    * Guarda cada imagen de inmediato y crea una Factura en `recibida` por
@@ -112,7 +119,12 @@ export class InvoicesController {
     const correcciones = normalizarCorrecciones(corregirCamposSchema.parse(body));
 
     for (const correccion of correcciones) {
-      await this.facturaRepository.aplicarCorreccion(id, correccion.campo, correccion.valorCorregido);
+      await this.facturaRepository.aplicarCorreccion(
+        id,
+        correccion.campo,
+        correccion.valorCorregido,
+        this.identificacionesPropias,
+      );
     }
 
     return this.obtener(id);

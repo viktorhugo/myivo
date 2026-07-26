@@ -1,5 +1,6 @@
 import type { FacturaEstado } from '../state-machine/factura-estado';
 import type { CampoConConfianza, MedioPago } from '../ports/invoice-extractor.port';
+import type { TipoDocumento } from '../tax-rules/clasificacion-documento';
 
 /**
  * Un archivo derivado (compresión, recorte, corrección de perspectiva) nunca
@@ -24,10 +25,9 @@ export type CufeOrigen = 'qr' | 'ocr_respaldo';
 export type ConfianzaCampos = Partial<Record<CampoConConfianza, number>>;
 
 /**
- * Campos de captura (US1) + extracción (US2) de `data-model.md`. Los campos
- * de clasificación tributaria (`tipoDocumento`, `elegibilidadTributaria`,
- * `elegibilidadMotivo`) y el soft-delete (`eliminadaEn`) se agregan en
- * User Story 3 y 4/5 respectivamente, cuando exista lógica que los produzca.
+ * Campos de captura (US1) + extracción (US2) + clasificación tributaria
+ * (US3) de `data-model.md`. El soft-delete (`eliminadaEn`) se agrega en
+ * User Story 4/5, cuando exista lógica que lo produzca.
  */
 export interface Factura {
   id: string;
@@ -50,6 +50,13 @@ export interface Factura {
   cufe: string | null;
   cufeOrigen: CufeOrigen | null;
   confianzaCampos: ConfianzaCampos;
+
+  /** `null` hasta que la extracción produce datos que clasificar (T038). */
+  tipoDocumento: TipoDocumento | null;
+  /** Siempre un valor CALCULADO (FR-016) — ninguna ruta de código distinta de la regla de elegibilidad lo asigna. */
+  elegibilidadTributaria: boolean | null;
+  /** Motivo cuando `elegibilidadTributaria = false` (FR-018); `null` cuando es elegible o aún no se calcula. */
+  elegibilidadMotivo: string | null;
 
   creadaEn: Date;
   actualizadaEn: Date;
