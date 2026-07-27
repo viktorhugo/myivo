@@ -190,9 +190,9 @@ Hallazgo de la validación end-to-end con fotos reales (research.md § 6): la mi
 **Purpose**: mejoras que afectan a varias historias, después de que todas están construidas.
 
 - [ ] T050 [P] Documentación de despliegue (README con `docker compose up`, costo operativo esperado de `research.md`)
-- [ ] T051 Revisar cobertura de tests de dominio (constitution Principio VIII): todas las reglas tributarias, monetarias y de máquina de estados con test unitario
-- [ ] T052 [P] Configurar prompt caching en el adaptador de extracción (research.md § 3) para el system prompt/schema, reduciendo costo desde la segunda llamada
-- [ ] T053 Ejecutar la validación completa de `quickstart.md` de punta a punta (H1 → H5)
+- [X] T051 Revisar cobertura de tests de dominio (constitution Principio VIII): todas las reglas tributarias, monetarias y de máquina de estados con test unitario
+- [X] T052 [P] Configurar prompt caching en el adaptador de extracción (research.md § 3) para el system prompt/schema, reduciendo costo desde la segunda llamada
+- [X] T053 Ejecutar la validación completa de `quickstart.md` de punta a punta (H1 → H5)
 
 ---
 

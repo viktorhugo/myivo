@@ -24,9 +24,10 @@ import { decodificarImagen } from './image-decoder';
  * orquestador (constitution Principio III) es la validación real de todos
  * modos, sin importar qué tan estricto sea el mecanismo de cada proveedor.
  *
- * El prompt caching de research.md § 3 (`cache_control` sobre el system
- * prompt) es T052 (Polish) — no se implementa aquí para no adelantar una
- * tarea de otra fase.
+ * Prompt caching (research.md § 3, T052): el system prompt (instrucciones +
+ * schema JSON) es idéntico entre llamadas — solo cambia la imagen — así que
+ * se marca con `cache_control` para que Anthropic lo sirva desde caché a
+ * partir de la segunda llamada.
  */
 
 // Generoso a propósito: el "thinking" adaptativo de Sonnet 5 puede consumir
@@ -54,7 +55,13 @@ export class ClaudeInvoiceExtractorAdapter implements InvoiceExtractor {
     const mensaje = await this.client.messages.create({
       model: this.modelo,
       max_tokens: MAX_TOKENS_SALIDA,
-      system: EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA,
+      system: [
+        {
+          type: 'text',
+          text: EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       messages: [
         {
           role: 'user',
