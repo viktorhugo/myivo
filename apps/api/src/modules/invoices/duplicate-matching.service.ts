@@ -53,9 +53,16 @@ export class DuplicateMatchingService {
    * Detecta duplicados para una factura recién extraída y, si encuentra uno,
    * registra la marca (idempotente: no duplica una marca ya existente entre
    * el mismo par). FR-019 (CUFE exacto, automático) tiene prioridad sobre
-   * FR-020 (difuso, sin CUFE) — un documento con CUFE nunca pasa por el
-   * mecanismo difuso, evita falsos positivos entre dos facturas electrónicas
-   * distintas que coincidan en comercio/fecha/total por casualidad.
+   * FR-020 (difuso, sin CUFE) — un documento con CUFE de QR (confiable) nunca
+   * pasa por el mecanismo difuso, evita falsos positivos entre dos facturas
+   * electrónicas distintas que coincidan en comercio/fecha/total por
+   * casualidad.
+   *
+   * Excepción: cuando el CUFE viene de OCR (`cufeOrigen === 'ocr_respaldo'`),
+   * no es lo bastante confiable como para descartar un duplicado solo porque
+   * el texto no calzó carácter por carácter — verificado con datos reales:
+   * la misma foto releída dos veces produjo CUFEs distintos en un dígito. En
+   * ese caso, si no hay coincidencia exacta, se cae al mecanismo difuso.
    */
   async detectarYRegistrar(facturaId: string): Promise<void> {
     const factura = await this.prisma.factura.findUnique({ where: { id: facturaId } });
@@ -70,8 +77,12 @@ export class DuplicateMatchingService {
       });
       if (otraConMismoCufe && esDuplicadoExactoPorCufe(factura.cufe, otraConMismoCufe.cufe)) {
         await this.registrarSiNoExiste(otraConMismoCufe.id, facturaId, 'cufe_exacto', 'duplicado_confirmado');
+        return;
       }
-      return;
+
+      if (factura.cufeOrigen !== 'ocr_respaldo') {
+        return;
+      }
     }
 
     if (
@@ -85,7 +96,7 @@ export class DuplicateMatchingService {
     const candidatos = await this.prisma.$queryRaw<CandidatoFuzzy[]>`
       SELECT id FROM facturas
       WHERE id != ${facturaId}
-        AND cufe IS NULL
+        AND (cufe IS NULL OR "cufeOrigen" = 'ocr_respaldo')
         AND "fechaHoraCompra"::date = ${factura.fechaHoraCompra}::date
         AND "totalCentavos" = ${factura.totalCentavos}
         AND "comercioNombreNormalizado" IS NOT NULL

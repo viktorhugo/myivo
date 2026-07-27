@@ -177,6 +177,12 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 **Checkpoint**: las 5 historias funcionan juntas. Validar con `quickstart.md` § H5 (validación completa end-to-end del MVP).
 
+### Extensión de User Story 5 — CUFE por OCR no excluye el mecanismo difuso (FR-020)
+
+Hallazgo de la validación end-to-end con fotos reales (research.md § 6): la misma factura fotografiada dos veces produjo CUFEs distintos en un carácter porque el QR no era legible y el CUFE se leyó por OCR — ni el mecanismo exacto (FR-019) ni el difuso (FR-020, que excluía cualquier documento con CUFE) detectaban ese caso.
+
+- [X] T060 [US5] Un CUFE con `cufeOrigen: 'ocr_respaldo'` (no `'qr'`) ya no excluye el mecanismo difuso cuando no hay coincidencia exacta, en `apps/api/src/modules/invoices/duplicate-matching.service.ts` — verificado de nuevo con la misma foto real (D1) subida dos veces
+
 ---
 
 ## Phase 8: Polish & Cross-Cutting Concerns

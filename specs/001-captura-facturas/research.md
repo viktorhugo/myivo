@@ -50,6 +50,10 @@
 
 **Rationale**: Mantiene la lógica de coincidencia dentro de la base de datos sin añadir un servicio o librería externa; `pg_trgm` es estándar, ligero, y suficiente para tolerar el ruido de OCR esperado (variaciones menores de un mismo nombre de comercio) sin sobre-ingeniería (no se necesita un servicio de fuzzy-matching dedicado para este volumen).
 
+**Hallazgo con datos reales (post-MVP)**: validando con fotos reales de celular, la misma factura (D1, subida dos veces) produjo dos CUFEs distintos en un carácter. El CUFE de esa factura viene de OCR (`cufeOrigen: 'ocr_respaldo'`) porque el QR de la foto no era legible (ángulo/brillo/resolución) — y el modelo de visión no transcribe con exactitud garantizada un texto impreso largo. Como el diseño original de FR-019/FR-020 excluía del mecanismo difuso a cualquier documento con CUFE (para evitar falsos positivos entre facturas electrónicas distintas), este caso no era detectado por ninguna de las dos reglas: ni exacto (los CUFEs difieren) ni difuso (se salta porque hay CUFE).
+
+**Ajuste**: un CUFE de QR sigue excluyendo el mecanismo difuso sin cambios (sigue siendo confiable). Un CUFE de OCR (`cufeOrigen: 'ocr_respaldo'`) ya no lo hace — si no hay coincidencia exacta, el documento cae al mecanismo difuso igual que uno sin CUFE. FR-020 se actualizó para reflejar esta condición. Implementado en `duplicate-matching.service.ts`, verificado de nuevo con la misma foto real.
+
 ## 7. Representación de imágenes (original + derivados)
 
 **Decision**: Filesystem local del VPS, montado como volumen Docker; derivados (comprimido, recortado) generados con `sharp` y guardados como archivos nuevos vinculados al original por ID.
