@@ -79,9 +79,14 @@ model Factura {
   elegibilidadTributaria Boolean?
   elegibilidadMotivo     String?
 
+  /// minúsculas/sin tildes/sin puntuación, calculado en JS al guardar — insumo de la coincidencia difusa por pg_trgm (research.md § 6). Nunca se expone tal cual, solo se usa para comparar.
+  comercioNombreNormalizado String?
+
   items               ItemFactura[]
   correcciones        CorreccionManual[]
   extraccionesCrudas  ExtraccionCruda[]
+  marcasComoOriginal  MarcaPosibleDuplicado[] @relation("FacturaOriginal")
+  marcasComoCandidata MarcaPosibleDuplicado[] @relation("FacturaCandidata")
 
   creadaEn      DateTime @default(now())
   actualizadaEn DateTime @updatedAt
@@ -134,4 +139,35 @@ model ExtraccionCruda {
   creadaEn DateTime @default(now())
 
   @@map("extracciones_crudas")
+}
+
+enum MetodoDeteccionDuplicado {
+  cufe_exacto
+  comercio_fecha_total_similar
+}
+
+enum EstadoMarcaDuplicado {
+  duplicado_confirmado
+  pendiente_confirmacion
+  confirmado_distinto
+}
+
+// Relación entre dos facturas que el sistema considera la misma compra —
+// data-model.md § Marca de Posible Duplicado, FR-019/FR-020. Ortogonal a
+// Factura.estado: no comparte máquina de estados con el pipeline de extracción.
+model MarcaPosibleDuplicado {
+  id String @id @default(uuid())
+
+  facturaOriginalId  String
+  facturaOriginal    Factura @relation("FacturaOriginal", fields: [facturaOriginalId], references: [id], onDelete: Cascade)
+  facturaCandidataId String
+  facturaCandidata   Factura @relation("FacturaCandidata", fields: [facturaCandidataId], references: [id], onDelete: Cascade)
+
+  metodoDeteccion MetodoDeteccionDuplicado
+  estado          EstadoMarcaDuplicado @default(pendiente_confirmacion)
+  resueltoEn      DateTime?
+
+  creadaEn DateTime @default(now())
+
+  @@map("marcas_posible_duplicado")
 }

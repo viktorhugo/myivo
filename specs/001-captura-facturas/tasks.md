@@ -168,12 +168,12 @@ description: "Task list for Captura y Registro Estructurado de Facturas"
 
 ### Implementación para User Story 5
 
-- [ ] T044 [P] [US5] Migración Prisma: tabla `MarcaDePosibleDuplicado` en `apps/api/prisma/schema.prisma`
-- [ ] T045 [P] [US5] Regla de dominio pura de duplicado exacto por CUFE, con test unitario, en `packages/domain/src/duplicates/duplicado-exacto.ts`
-- [ ] T046 [P] [US5] Regla de coincidencia difusa (comercio normalizado vía `pg_trgm` + fecha/total exactos), con test de integración, en `apps/api/src/modules/invoices/duplicate-matching.service.ts` — research.md § 6
-- [ ] T047 [US5] Integrar detección de duplicados en el orquestador de extracción (T031) — nunca bloquea el resto de un lote en carga (FR-021)
-- [ ] T048 [US5] Endpoints `GET /invoices/duplicates/pending` y `POST /invoices/duplicates/:id/resolve` en `apps/api/src/modules/invoices/invoices.controller.ts`
-- [ ] T049 [P] [US5] Bottom sheet de confirmación de duplicado sobre el listado en `apps/web/src/pages/Listado.tsx`
+- [X] T044 [P] [US5] Migración Prisma: tabla `MarcaPosibleDuplicado` (+ extensión `pg_trgm`, columna `comercioNombreNormalizado`) en `apps/api/prisma/schema.prisma`
+- [X] T045 [P] [US5] Regla de dominio pura de duplicado exacto por CUFE, con test unitario, en `packages/domain/src/duplicates/duplicado-exacto.ts`
+- [X] T046 [P] [US5] Regla de coincidencia difusa (comercio normalizado vía `pg_trgm` + fecha/total exactos), con test de integración, en `apps/api/src/modules/invoices/duplicate-matching.service.ts` — research.md § 6
+- [X] T047 [US5] Integrar detección de duplicados en el orquestador de extracción (T031) — nunca bloquea el resto de un lote en carga (FR-021)
+- [X] T048 [US5] Endpoints `GET /invoices/duplicates/pending` y `POST /invoices/duplicates/:id/resolve` en `apps/api/src/modules/invoices/invoices.controller.ts`
+- [X] T049 [P] [US5] Bottom sheet de confirmación de duplicado sobre el listado en `apps/web/src/pages/Listado.tsx`
 
 **Checkpoint**: las 5 historias funcionan juntas. Validar con `quickstart.md` § H5 (validación completa end-to-end del MVP).
 

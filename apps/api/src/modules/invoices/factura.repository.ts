@@ -21,6 +21,7 @@ import type {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { FiltrosFactura } from './dto/filtrar-facturas.dto';
+import { normalizarNombreComercio } from './duplicate-matching.service';
 
 const ESTADO_A_DOMINIO: Record<FacturaEstadoPrisma, FacturaEstado> = {
   recibida: 'recibida',
@@ -44,7 +45,8 @@ interface ArchivoDerivadoJson {
   creadoEn: string;
 }
 
-function aDominio(fila: FacturaPrisma): Factura {
+/** Exportado para reutilizar en DuplicateMatchingService (mapea las facturas candidatas embebidas). */
+export function aDominio(fila: FacturaPrisma): Factura {
   const derivadosJson = fila.derivados as unknown as ArchivoDerivadoJson[];
   const derivados: ArchivoDerivado[] = derivadosJson.map((derivado) => ({
     ...derivado,
@@ -332,6 +334,9 @@ export class FacturaRepository {
         where: { id: facturaId },
         data: {
           comercioNombre: campos.comercioNombre,
+          comercioNombreNormalizado: campos.comercioNombre
+            ? normalizarNombreComercio(campos.comercioNombre)
+            : null,
           comercioNIT: campos.comercioNIT,
           fechaHoraCompra: campos.fechaHoraCompra,
           moneda: campos.moneda,
@@ -401,9 +406,15 @@ export class FacturaRepository {
         data: { facturaId, campo, valorExtraidoOriginal: valorOriginalTexto, valorCorregido },
       });
 
+      const datosActualizacion: Prisma.FacturaUpdateInput = { [definicion.columna]: valorParseado };
+      if (definicion.columna === 'comercioNombre') {
+        datosActualizacion.comercioNombreNormalizado =
+          typeof valorParseado === 'string' ? normalizarNombreComercio(valorParseado) : null;
+      }
+
       let filaActualizada = await tx.factura.update({
         where: { id: facturaId },
-        data: { [definicion.columna]: valorParseado },
+        data: datosActualizacion,
       });
 
       if (CAMPOS_QUE_AFECTAN_ELEGIBILIDAD.has(definicion.columna)) {

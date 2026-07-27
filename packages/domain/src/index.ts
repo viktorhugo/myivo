@@ -3,6 +3,8 @@ export * from './state-machine/factura-estado';
 export * from './entities/factura';
 export * from './entities/item-factura';
 export * from './entities/correccion-manual';
+export * from './entities/marca-posible-duplicado';
 export * from './tax-rules/cuadre-monetario';
 export * from './tax-rules/clasificacion-documento';
 export * from './tax-rules/elegibilidad';
+export * from './duplicates/duplicado-exacto';

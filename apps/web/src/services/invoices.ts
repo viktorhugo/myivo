@@ -178,3 +178,33 @@ export async function reprocesarFactura(id: string): Promise<FacturaDto> {
   });
   return parsearRespuesta<FacturaDto>(response);
 }
+
+export type MetodoDeteccionDuplicado = 'cufe_exacto' | 'comercio_fecha_total_similar';
+
+export interface MarcaPendienteDto {
+  id: string;
+  metodoDeteccion: MetodoDeteccionDuplicado;
+  facturaOriginal: FacturaDto;
+  facturaCandidata: FacturaDto;
+  creadaEn: string;
+}
+
+export async function obtenerDuplicadosPendientes(): Promise<MarcaPendienteDto[]> {
+  const response = await fetch(`${API_BASE_URL}/invoices/duplicates/pending`, {
+    credentials: 'include',
+  });
+  return parsearRespuesta<MarcaPendienteDto[]>(response);
+}
+
+export async function resolverDuplicado(
+  marcaId: string,
+  resolucion: 'duplicado' | 'distinto',
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/invoices/duplicates/${marcaId}/resolve`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resolucion }),
+  });
+  await parsearRespuesta(response);
+}

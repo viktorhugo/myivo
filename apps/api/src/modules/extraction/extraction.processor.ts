@@ -11,6 +11,7 @@ import {
   type InvoiceExtractor,
 } from '@myivo/domain';
 import type { Env } from '../../config/env.schema';
+import { DuplicateMatchingService } from '../invoices/duplicate-matching.service';
 import { FacturaRepository } from '../invoices/factura.repository';
 import { FileStorageService } from '../invoices/file-storage.service';
 import { decodificarCufeDesdeQr } from './cufe-decoder';
@@ -34,6 +35,7 @@ export class ExtractionProcessor {
     @Inject(INVOICE_EXTRACTOR) private readonly extractor: InvoiceExtractor,
     private readonly facturaRepository: FacturaRepository,
     private readonly fileStorage: FileStorageService,
+    private readonly duplicateMatching: DuplicateMatchingService,
     configService: ConfigService<Env, true>,
   ) {
     const proveedor = configService.get('EXTRACTION_PROVIDER', { infer: true });
@@ -119,6 +121,18 @@ export class ExtractionProcessor {
         facturaId,
         necesitaRevision ? 'necesita_revisión' : 'extraída',
       );
+
+      // Ortogonal a Factura.estado (data-model.md, US5): un fallo aquí nunca
+      // debe tumbar una extracción que sí funcionó (FR-021 — no bloquea el
+      // resto de un lote), por eso tiene su propio try/catch aparte.
+      try {
+        await this.duplicateMatching.detectarYRegistrar(facturaId);
+      } catch (errorDuplicados) {
+        this.logger.error(
+          `Detección de duplicados falló para factura ${facturaId}`,
+          errorDuplicados instanceof Error ? errorDuplicados.stack : String(errorDuplicados),
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Extracción fallida para factura ${facturaId}`,

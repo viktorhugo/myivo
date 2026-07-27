@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
-import type { CorreccionManual, Factura, ItemFactura } from '@myivo/domain';
+import type { CorreccionManual, Factura, ItemFactura, MarcaPosibleDuplicado } from '@myivo/domain';
 import type { Response } from 'express';
 import type { Env } from '../../config/env.schema';
 import { mimeTypeDeArchivo } from '../../common/mime';
@@ -24,6 +24,8 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { ExtractionProcessor } from '../extraction/extraction.processor';
 import { corregirCamposSchema, normalizarCorrecciones } from './dto/corregir-campos.dto';
 import { filtrarFacturasSchema } from './dto/filtrar-facturas.dto';
+import { resolverDuplicadoSchema } from './dto/resolver-duplicado.dto';
+import { DuplicateMatchingService, type MarcaPendienteConFacturas } from './duplicate-matching.service';
 import { FacturaRepository, type ResultadoListado } from './factura.repository';
 import { FileStorageService } from './file-storage.service';
 
@@ -43,6 +45,7 @@ export class InvoicesController {
     private readonly facturaRepository: FacturaRepository,
     private readonly fileStorage: FileStorageService,
     private readonly extractionProcessor: ExtractionProcessor,
+    private readonly duplicateMatching: DuplicateMatchingService,
     configService: ConfigService<Env, true>,
   ) {
     this.identificacionesPropias = configService.get('MIS_IDENTIFICACIONES', { infer: true });
@@ -163,5 +166,21 @@ export class InvoicesController {
       throw new NotFoundException(`Factura ${id} no encontrada`);
     }
     return actualizada;
+  }
+
+  /** Marcas de posible duplicado en `pendiente_confirmacion`, cada una con las dos facturas candidatas (FR-020). */
+  @Get('duplicates/pending')
+  async duplicadosPendientes(): Promise<MarcaPendienteConFacturas[]> {
+    return this.duplicateMatching.obtenerPendientes();
+  }
+
+  /** Resuelve una marca pendiente: "duplicado" la confirma, "distinto" la descarta — no bloquea el resto de un lote (FR-020/FR-021). */
+  @Post('duplicates/:id/resolve')
+  async resolverDuplicado(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ): Promise<MarcaPosibleDuplicado> {
+    const { resolucion } = resolverDuplicadoSchema.parse(body);
+    return this.duplicateMatching.resolver(id, resolucion);
   }
 }

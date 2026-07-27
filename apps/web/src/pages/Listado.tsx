@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   listarFacturas,
-  type FacturaDto,
+  obtenerDuplicadosPendientes,
+  resolverDuplicado,
   type FacturaEstado,
+  type FacturaDto,
   type FiltrosFacturaParams,
+  type MarcaPendienteDto,
   type TipoDocumento,
 } from '../services/invoices';
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO_DOCUMENTO, OPCIONES_TIPO_DOCUMENTO } from '../etiquetas';
@@ -61,6 +64,15 @@ export default function Listado({
   const [sumaTotal, setSumaTotal] = useState(0);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [duplicadosPendientes, setDuplicadosPendientes] = useState<MarcaPendienteDto[]>([]);
+
+  async function cargarDuplicadosPendientes() {
+    try {
+      setDuplicadosPendientes(await obtenerDuplicadosPendientes());
+    } catch {
+      // No bloquea el listado si esto falla (FR-021) — se reintenta en el próximo montaje.
+    }
+  }
 
   async function buscar(filtros: FormularioFiltros) {
     setCargando(true);
@@ -79,6 +91,7 @@ export default function Listado({
 
   useEffect(() => {
     buscar(FILTROS_VACIOS);
+    cargarDuplicadosPendientes();
   }, []);
 
   function manejarSubmit(event: FormEvent) {
@@ -242,7 +255,81 @@ export default function Listado({
       >
         +
       </button>
+
+      {duplicadosPendientes[0] && (
+        <BottomSheetDuplicado
+          marca={duplicadosPendientes[0]}
+          onResuelto={() => {
+            setDuplicadosPendientes((actuales) => actuales.slice(1));
+            buscar(formulario);
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * Presenta una marca `pendiente_confirmacion` a la vez (FR-020) — no bloquea
+ * el resto del listado ni de un lote en carga (FR-021), solo pregunta.
+ */
+function BottomSheetDuplicado({
+  marca,
+  onResuelto,
+}: {
+  marca: MarcaPendienteDto;
+  onResuelto: () => void;
+}) {
+  const [resolviendo, setResolviendo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function resolver(resolucion: 'duplicado' | 'distinto') {
+    setResolviendo(true);
+    setError(null);
+    try {
+      await resolverDuplicado(marca.id, resolucion);
+      onResuelto();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo resolver');
+      setResolviendo(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: 'Canvas',
+        color: 'CanvasText',
+        borderTop: '1px solid #999',
+        padding: 16,
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.2)',
+      }}
+    >
+      <p style={{ margin: 0 }}>
+        <strong>¿Es la misma compra?</strong>
+      </p>
+      <p style={{ margin: '4px 0' }}>
+        {marca.facturaCandidata.comercioNombre ?? '—'} —{' '}
+        {formatearFecha(marca.facturaCandidata.fechaHoraCompra)} —{' '}
+        {formatearCentavos(marca.facturaCandidata.totalCentavos, marca.facturaCandidata.moneda)}
+      </p>
+      <p style={{ margin: '0 0 8px', fontSize: '0.85em', color: '#666' }}>
+        Coincide en comercio, fecha y total con una factura que ya tienes registrada.
+      </p>
+      {error && <p role="alert">{error}</p>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={() => resolver('duplicado')} disabled={resolviendo}>
+          Sí, es la misma
+        </button>
+        <button type="button" onClick={() => resolver('distinto')} disabled={resolviendo}>
+          No, son distintas
+        </button>
+      </div>
+    </div>
   );
 }
 
