@@ -13,6 +13,14 @@ export type TipoDocumento =
   | 'otro'
   | 'desconocido';
 
+export type ResultadoValidacionDian =
+  'valido_vigente' | 'no_encontrado' | 'anulado_reemplazado' | 'otro';
+
+export interface UltimaValidacionDianDto {
+  resultado: ResultadoValidacionDian;
+  creadaEn: string;
+}
+
 export interface ArchivoDerivadoDto {
   ruta: string;
   tipoTransformacion: string;
@@ -55,6 +63,9 @@ export interface FacturaDto {
   creadaEn: string;
   actualizadaEn: string;
   eliminadaEn: string | null;
+
+  /** `null` si nunca se validó contra la DIAN — solo presente en GET /invoices (listado), no en el detalle. */
+  ultimaValidacionDian?: UltimaValidacionDianDto | null;
 }
 
 export interface ItemFacturaDto {
@@ -81,9 +92,9 @@ export interface FacturaDetalleDto extends FacturaDto {
   correcciones: CorreccionManualDto[];
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
-async function parsearRespuesta<T>(response: Response): Promise<T> {
+export async function parsearRespuesta<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const cuerpo: { message?: string | string[] } | null = await response.json().catch(() => null);
     const mensaje = cuerpo?.message ?? `Error ${response.status}`;

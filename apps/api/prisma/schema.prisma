@@ -89,6 +89,7 @@ model Factura {
   extraccionesCrudas  ExtraccionCruda[]
   marcasComoOriginal  MarcaPosibleDuplicado[] @relation("FacturaOriginal")
   marcasComoCandidata MarcaPosibleDuplicado[] @relation("FacturaCandidata")
+  validacionesDian    ValidacionDian[]
 
   creadaEn      DateTime @default(now())
   actualizadaEn DateTime @updatedAt
@@ -175,4 +176,44 @@ model MarcaPosibleDuplicado {
   creadaEn DateTime @default(now())
 
   @@map("marcas_posible_duplicado")
+}
+
+enum MetodoValidacionDian {
+  manual
+  conciliacion
+}
+
+enum ResultadoValidacionDian {
+  valido_vigente
+  no_encontrado
+  anulado_reemplazado
+  otro
+}
+
+// Registro de auditoría de que el usuario (o la conciliación en lote)
+// confirmó el estado de un CUFE contra la DIAN — data-model.md,
+// specs/003-validacion-dian. Append-only: nunca se edita ni se borra un
+// registro ya creado, uno nuevo es un registro nuevo. Ortogonal a
+// Factura.estado y MUST NOT alimentar elegibilidadTributaria/tipoDocumento
+// (constitution Principio IV) — es información complementaria, no una
+// entrada del cálculo de elegibilidad.
+model ValidacionDian {
+  id String @id @default(uuid())
+
+  facturaId String
+  factura   Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  metodo    MetodoValidacionDian
+  resultado ResultadoValidacionDian
+
+  /// Copia de los campos de Factura en el momento de la validación — nunca datos leídos del portal DIAN (research.md § 2).
+  snapshotComercioNombre  String?
+  snapshotTotalCentavos   Int?
+  snapshotMoneda          String
+  snapshotFechaHoraCompra DateTime?
+  snapshotCufe            String
+
+  creadaEn DateTime @default(now())
+
+  @@map("validaciones_dian")
 }

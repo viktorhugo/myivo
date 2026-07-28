@@ -21,8 +21,9 @@
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-express": "^11.1.28",
     "@prisma/adapter-pg": "^7.9.0",
-    "@prisma/client": "^7.9.0",
+    "@prisma/client": "^7.9.1",
     "argon2": "^0.45.1",
+    "exceljs": "^4.4.0",
     "express-session": "^1.19.0",
     "heic-decode": "^2.1.0",
     "jsqr": "^1.4.0",
@@ -43,7 +44,7 @@
     "@types/supertest": "^7.2.1",
     "dotenv": "^17.4.2",
     "jest": "^30.4.2",
-    "prisma": "^7.9.0",
+    "prisma": "^7.9.1",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.12"
   }

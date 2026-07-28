@@ -8,12 +8,21 @@ import {
   type ConfianzaCamposDto,
   type CorreccionManualDto,
   type FacturaDetalleDto,
+  type ResultadoValidacionDian,
 } from '../services/invoices';
+import {
+  construirEnlaceDian,
+  listarValidacionesDian,
+  registrarValidacionDian,
+  type ValidacionDianDto,
+} from '../services/validacion-dian';
 import {
   ETIQUETA_ESTADO,
   ETIQUETA_MEDIO_PAGO,
+  ETIQUETA_RESULTADO_DIAN,
   ETIQUETA_TIPO_DOCUMENTO,
   OPCIONES_MEDIO_PAGO,
+  OPCIONES_RESULTADO_DIAN,
   OPCIONES_TIPO_DOCUMENTO,
 } from '../etiquetas';
 import { formatearCentavos, formatearFecha } from '../format';
@@ -441,6 +450,145 @@ function MenuAcciones({
   );
 }
 
+/**
+ * Validación asistida contra la DIAN (spec.md US1, specs/003-validacion-dian)
+ * — visible solo si la factura tiene CUFE (FR-005). El enlace y el botón de
+ * copiar son las dos formas de llegar al CUFE en el portal de la DIAN: si el
+ * parámetro de URL no autocompleta el campo (research.md § 1), copiar+pegar
+ * sigue funcionando. El registro del resultado es siempre manual — ninguna
+ * llamada de este sistema llega jamás a la DIAN (constitution Principio VI).
+ */
+function SeccionValidacionDian({ facturaId, cufe }: { facturaId: string; cufe: string }) {
+  const [historial, setHistorial] = useState<ValidacionDianDto[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [registrando, setRegistrando] = useState(false);
+  const [resultadoElegido, setResultadoElegido] = useState<ResultadoValidacionDian>('valido_vigente');
+  const [copiado, setCopiado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function cargar() {
+    setCargando(true);
+    try {
+      setHistorial(await listarValidacionesDian(facturaId));
+    } catch {
+      // No bloquea el resto del Detalle si esto falla — se reintenta al recargar.
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    cargar();
+  }, [facturaId]);
+
+  async function copiarCufe() {
+    await navigator.clipboard.writeText(cufe);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
+  async function registrar() {
+    setRegistrando(true);
+    setError(null);
+    try {
+      await registrarValidacionDian(facturaId, resultadoElegido);
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo registrar la validación');
+    } finally {
+      setRegistrando(false);
+    }
+  }
+
+  const ultima = historial[0];
+
+  return (
+    <div className="card" style={{ padding: '12px 14px', marginTop: 8 }}>
+      <MarcasEsquina />
+      <p className="kicker" style={{ margin: 0, color: 'var(--color-text-muted-2)' }}>
+        Validación DIAN
+      </p>
+      {ultima && (
+        <p style={{ margin: '4px 0 0', fontSize: 13 }}>
+          Última validación: <strong>{ETIQUETA_RESULTADO_DIAN[ultima.resultado]}</strong> ·{' '}
+          {formatearFecha(ultima.creadaEn)}
+        </p>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <a
+          href={construirEnlaceDian(cufe)}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-primary"
+          style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none', display: 'inline-block' }}
+        >
+          Consultar en la DIAN
+        </a>
+        <button type="button" onClick={copiarCufe} style={{ padding: '6px 12px', fontSize: 12 }}>
+          {copiado ? 'CUFE copiado' : 'Copiar CUFE'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select
+          value={resultadoElegido}
+          onChange={(e) => setResultadoElegido(e.target.value as ResultadoValidacionDian)}
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 12,
+            padding: '5px 6px',
+            color: 'var(--color-text)',
+            background: 'transparent',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-button)',
+          }}
+        >
+          {OPCIONES_RESULTADO_DIAN.map((opcion) => (
+            <option key={opcion} value={opcion}>
+              {ETIQUETA_RESULTADO_DIAN[opcion]}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={registrar}
+          disabled={registrando}
+          className="btn-primary"
+          style={{ padding: '6px 12px', fontSize: 12 }}
+        >
+          {registrando ? 'Registrando…' : 'Registrar resultado'}
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" style={{ fontSize: 11, color: 'var(--color-estado-fallida-fg)', marginTop: 4 }}>
+          {error}
+        </p>
+      )}
+
+      {!cargando && historial.length > 1 && (
+        <details style={{ marginTop: 8, fontSize: 12 }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+            Ver historial completo ({historial.length})
+          </summary>
+          <div style={{ marginTop: 6 }}>
+            {historial.map((validacion) => (
+              <div
+                key={validacion.id}
+                style={{ padding: '3px 0', borderBottom: '1px solid var(--color-border-strong)' }}
+              >
+                {ETIQUETA_RESULTADO_DIAN[validacion.resultado]} · {formatearFecha(validacion.creadaEn)}
+                {validacion.metodo === 'conciliacion' && ' (conciliación)'}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 export default function Detalle({
   tema,
   facturaId,
@@ -643,6 +791,8 @@ export default function Detalle({
           </button>
         </p>
       )}
+
+      {factura.cufe && <SeccionValidacionDian facturaId={factura.id} cufe={factura.cufe} />}
 
       <LeyendaConfianza />
 

@@ -9,7 +9,12 @@ import {
   type MarcaPendienteDto,
   type TipoDocumento,
 } from '../services/invoices';
-import { ETIQUETA_ESTADO, ETIQUETA_TIPO_DOCUMENTO, OPCIONES_TIPO_DOCUMENTO } from '../etiquetas';
+import {
+  ETIQUETA_ESTADO,
+  ETIQUETA_RESULTADO_DIAN,
+  ETIQUETA_TIPO_DOCUMENTO,
+  OPCIONES_TIPO_DOCUMENTO,
+} from '../etiquetas';
 import EstadoVacio from './EstadoVacio';
 import {
   formatearCentavos,
@@ -77,10 +82,12 @@ export default function Listado({
   tema,
   onAbrirFactura,
   onCapturar,
+  onConciliarDian,
 }: {
   tema: TemaResuelto;
   onAbrirFactura: (facturaId: string) => void;
   onCapturar: () => void;
+  onConciliarDian: () => void;
 }) {
   const [formulario, setFormulario] = useState<FormularioFiltros>(FILTROS_VACIOS);
   const [items, setItems] = useState<FacturaDto[]>([]);
@@ -133,6 +140,7 @@ export default function Listado({
   const IconoBuscar = obtenerIcono('buscar', tema);
   const IconoFiltro = obtenerIcono('filtro', tema);
   const IconoCamara = obtenerIcono('camara', tema);
+  const IconoConciliarDian = obtenerIcono('factura', tema);
 
   // "Biblioteca vacía" (US4) es distinto de "0 resultados para el filtro
   // actual" (spec.md § Assumptions) — solo la primera muestra la pantalla de
@@ -165,6 +173,15 @@ export default function Listado({
               onClick={() => setFiltrosVisibles((visible) => !visible)}
             >
               <IconoFiltro size={17} />
+            </button>
+            <button
+              type="button"
+              className="boton-icono"
+              aria-label="Conciliar con la DIAN"
+              title="Conciliar con la DIAN"
+              onClick={onConciliarDian}
+            >
+              <IconoConciliarDian size={17} />
             </button>
           </>
         )}
@@ -517,6 +534,22 @@ function FilaFactura({
             title={factura.comercioNombre ?? undefined}
           >
             {factura.comercioNombre ?? factura.id}
+            {factura.ultimaValidacionDian && (
+              <span
+                title={`Validación DIAN: ${ETIQUETA_RESULTADO_DIAN[factura.ultimaValidacionDian.resultado]}`}
+                style={{
+                  display: 'inline-flex',
+                  marginLeft: 5,
+                  verticalAlign: 'middle',
+                  color:
+                    factura.ultimaValidacionDian.resultado === 'valido_vigente'
+                      ? 'var(--color-estado-extraida-fg)'
+                      : 'var(--color-estado-revision-fg)',
+                }}
+              >
+                <IconoCheck size={11} />
+              </span>
+            )}
           </span>
           <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
             {formatearFecha(factura.fechaHoraCompra)}

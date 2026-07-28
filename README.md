@@ -1,10 +1,10 @@
 # MyIvo
 
-Sistema personal de captura y registro estructurado de facturas físicas (declaración de renta, Colombia). Fotografías o subes una factura, el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, y `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío).
+Sistema personal de captura y registro estructurado de facturas físicas (declaración de renta, Colombia). Fotografías o subes una factura, el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío), y `specs/003-validacion-dian/spec.md` para la validación asistida de CUFEs contra la DIAN.
 
 ## Stack
 
-- **Backend**: NestJS + Prisma sobre PostgreSQL (`apps/api`)
+- **Backend**: NestJS + Prisma sobre PostgreSQL (`apps/api`) — `exceljs` para parsear el Excel de conciliación con la DIAN
 - **Frontend**: Vite + React (`apps/web`) — dos temas visuales conmutables (Industry/Nocturne, ver abajo), `lucide-react` + `@phosphor-icons/react` para iconografía, fuentes auto-hospedadas vía `@fontsource/barlow`, `@fontsource/barlow-condensed` y `@fontsource/inter` (nunca CDN externo — constitution Principio VII)
 - **Dominio**: TypeScript puro sin dependencias de framework (`packages/domain`) — reglas tributarias, cuadre monetario, máquina de estados
 - **Monorepo**: pnpm + Turborepo
@@ -18,6 +18,15 @@ La app tiene dos temas — **Industry** (claro, estética "blueprint": esquinas 
 - La preferencia (`industry` / `nocturne` / `system`) vive en `localStorage` del navegador — sin dato ni endpoint de servidor asociado (`useTheme.ts`).
 - Un script inline en `index.html` aplica el atributo `data-theme` en `<html>` antes del primer render, para evitar el flash de tema incorrecto.
 - Ver `specs/002-rediseno-visual-web/research.md` § 1-2 para el detalle de las decisiones de diseño.
+
+## Validación DIAN
+
+El sistema nunca consulta el portal de la DIAN de forma automática (constitution Principio VI: prohibido evadir captcha o automatizar contra un portal de terceros). Dos formas de confirmar un CUFE contra la fuente oficial, ambas asistidas:
+
+- **Individual**: desde el Detalle de una factura con CUFE, un enlace la lleva directo al catálogo de la DIAN (`https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey={CUFE}`) con el CUFE precargado; el resultado que el usuario reporta ahí se registra manualmente en la app.
+- **En lote**: el usuario aporta el Excel de documentos recibidos que él mismo descargó del portal "Facturando Electrónicamente" de la DIAN, y el sistema marca como conciliadas las facturas ya capturadas cuyo CUFE aparezca ahí.
+
+Ver `specs/003-validacion-dian/research.md` para el detalle de estas decisiones, incluyendo una limitación conocida: el esquema exacto de columnas del Excel de conciliación no se validó contra un archivo real de la DIAN.
 
 ## Requisitos
 

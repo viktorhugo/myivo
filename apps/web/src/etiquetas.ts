@@ -1,4 +1,4 @@
-import type { FacturaEstado, MedioPago, TipoDocumento } from './services/invoices';
+import type { FacturaEstado, MedioPago, ResultadoValidacionDian, TipoDocumento } from './services/invoices';
 
 export const ETIQUETA_ESTADO: Record<FacturaEstado, string> = {
   recibida: 'Recibida',
@@ -28,3 +28,13 @@ export const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
 };
 
 export const OPCIONES_TIPO_DOCUMENTO = Object.keys(ETIQUETA_TIPO_DOCUMENTO) as TipoDocumento[];
+
+/** Conjunto cerrado de resultados de validación DIAN (spec.md § Clarifications, sesión 2026-07-28). */
+export const ETIQUETA_RESULTADO_DIAN: Record<ResultadoValidacionDian, string> = {
+  valido_vigente: 'Válido y vigente',
+  no_encontrado: 'No encontrado',
+  anulado_reemplazado: 'Anulado o reemplazado',
+  otro: 'Otro',
+};
+
+export const OPCIONES_RESULTADO_DIAN = Object.keys(ETIQUETA_RESULTADO_DIAN) as ResultadoValidacionDian[];

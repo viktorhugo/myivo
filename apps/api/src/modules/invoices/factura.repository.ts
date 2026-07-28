@@ -12,12 +12,14 @@ import {
   type ItemFactura,
   type IvaTarifa,
   type MedioPago,
+  type ResultadoValidacionDian,
   type TipoDocumento,
 } from '@myivo/domain';
 import { Prisma } from '@prisma/client';
 import type {
   Factura as FacturaPrisma,
   FacturaEstado as FacturaEstadoPrisma,
+  ValidacionDian as ValidacionDianPrisma,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { FiltrosFactura } from './dto/filtrar-facturas.dto';
@@ -84,6 +86,19 @@ export function aDominio(fila: FacturaPrisma): Factura {
   };
 }
 
+/** Mapea la fila enriquecida del listado (con la validación DIAN más reciente ya incluida) — contracts/api.md, specs/003-validacion-dian. */
+function aDominioConValidacion(
+  fila: FacturaPrisma & { validacionesDian: ValidacionDianPrisma[] },
+): FacturaConValidacion {
+  const ultima = fila.validacionesDian[0];
+  return {
+    ...aDominio(fila),
+    ultimaValidacionDian: ultima
+      ? { resultado: ultima.resultado as ResultadoValidacionDian, creadaEn: ultima.creadaEn }
+      : null,
+  };
+}
+
 /** Campos que produce la extracción (US2) + clasificación tributaria (US3) — ver `data-model.md` § Factura. */
 export type CamposExtraidosFactura = Pick<
   Factura,
@@ -115,8 +130,19 @@ export interface ExtraccionCrudaInput {
   versionModelo: string;
 }
 
+/** Resumen de la validación DIAN más reciente de una factura — contracts/api.md, specs/003-validacion-dian. */
+export interface UltimaValidacionDian {
+  resultado: ResultadoValidacionDian;
+  creadaEn: Date;
+}
+
+export interface FacturaConValidacion extends Factura {
+  /** `null` si la factura nunca se validó contra la DIAN (FR-006). */
+  ultimaValidacionDian: UltimaValidacionDian | null;
+}
+
 export interface ResultadoListado {
-  items: Factura[];
+  items: FacturaConValidacion[];
   conteo: number;
   /** Centavos. Solo suma documentos en COP (FR-027). */
   sumaTotal: number;
@@ -223,6 +249,15 @@ export class FacturaRepository {
     return fila ? aDominio(fila) : null;
   }
 
+  /** Facturas activas con CUFE — candidatas para conciliación en lote (specs/003-validacion-dian US2). */
+  async listarConCufe(): Promise<{ id: string; cufe: string }[]> {
+    const filas = await this.prisma.factura.findMany({
+      where: { cufe: { not: null }, eliminadaEn: null },
+      select: { id: true, cufe: true },
+    });
+    return filas.map((fila) => ({ id: fila.id, cufe: fila.cufe as string }));
+  }
+
   /**
    * Soft-delete (FR-009/FR-029, constitution Principio I): marca `eliminadaEn`
    * sin tocar ningún otro campo ni el archivo original. Idempotente por
@@ -308,7 +343,13 @@ export class FacturaRepository {
     }
 
     const [filas, conteo, agregado] = await Promise.all([
-      this.prisma.factura.findMany({ where, orderBy: { creadaEn: 'desc' } }),
+      this.prisma.factura.findMany({
+        where,
+        orderBy: { creadaEn: 'desc' },
+        // Una sola consulta (Prisma resuelve el `take: 1` por factura, no
+        // N+1 desde el código de la aplicación) — FR-006, contracts/api.md.
+        include: { validacionesDian: { orderBy: { creadaEn: 'desc' }, take: 1 } },
+      }),
       this.prisma.factura.count({ where }),
       this.prisma.factura.aggregate({
         where: { ...where, moneda: 'COP' },
@@ -317,7 +358,7 @@ export class FacturaRepository {
     ]);
 
     return {
-      items: filas.map(aDominio),
+      items: filas.map(aDominioConValidacion),
       conteo,
       sumaTotal: agregado._sum.totalCentavos ?? 0,
     };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Captura from './pages/Captura';
+import ConciliacionDian from './pages/ConciliacionDian';
 import Detalle from './pages/Detalle';
 import Listado from './pages/Listado';
 import Login from './pages/Login';
@@ -7,7 +8,11 @@ import SelectorTema from './theme/SelectorTema';
 import { useTheme } from './theme/useTheme';
 import { cerrarSesion, haySesionActiva } from './services/auth';
 
-type Vista = { tipo: 'listado' } | { tipo: 'captura' } | { tipo: 'detalle'; facturaId: string };
+type Vista =
+  | { tipo: 'listado' }
+  | { tipo: 'captura' }
+  | { tipo: 'detalle'; facturaId: string }
+  | { tipo: 'conciliacion-dian' };
 
 export default function App() {
   const [vista, setVista] = useState<Vista>({ tipo: 'listado' });
@@ -83,7 +88,11 @@ export default function App() {
           tema={temaResuelto}
           onAbrirFactura={(facturaId) => setVista({ tipo: 'detalle', facturaId })}
           onCapturar={() => setVista({ tipo: 'captura' })}
+          onConciliarDian={() => setVista({ tipo: 'conciliacion-dian' })}
         />
+      )}
+      {vista.tipo === 'conciliacion-dian' && (
+        <ConciliacionDian tema={temaResuelto} onVolver={() => setVista({ tipo: 'listado' })} />
       )}
     </main>
   );
