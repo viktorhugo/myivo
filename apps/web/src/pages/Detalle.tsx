@@ -5,6 +5,7 @@ import {
   reprocesarFactura,
   urlImagenFactura,
   type ConfianzaCamposDto,
+  type CorreccionManualDto,
   type FacturaDetalleDto,
 } from '../services/invoices';
 import {
@@ -15,21 +16,23 @@ import {
   OPCIONES_TIPO_DOCUMENTO,
 } from '../etiquetas';
 import { formatearCentavos, formatearFecha } from '../format';
+import { obtenerIcono } from '../theme/iconos';
+import type { TemaResuelto } from '../theme/useTheme';
 
 /** Debe coincidir con UMBRAL_CONFIANZA_BAJA en packages/domain/src/tax-rules/cuadre-monetario.ts. */
 const UMBRAL_CONFIANZA_BAJA = 0.7;
 
 function colorConfianza(valor: number | undefined): string {
   if (valor === undefined) {
-    return '#9aa0a6';
+    return 'var(--color-text-muted)';
   }
   if (valor < UMBRAL_CONFIANZA_BAJA) {
-    return '#d3342d';
+    return 'var(--color-estado-fallida-fg)';
   }
   if (valor < 0.9) {
-    return '#e0a800';
+    return 'var(--color-estado-revision-fg)';
   }
-  return '#2a9d3f';
+  return 'var(--color-estado-extraida-fg)';
 }
 
 function PuntoConfianza({ valor }: { valor: number | undefined }) {
@@ -40,13 +43,38 @@ function PuntoConfianza({ valor }: { valor: number | undefined }) {
       aria-label={titulo}
       style={{
         display: 'inline-block',
-        width: 10,
-        height: 10,
+        width: 6,
+        height: 6,
         borderRadius: '50%',
+        flex: 'none',
         backgroundColor: colorConfianza(valor),
-        marginLeft: 8,
       }}
     />
+  );
+}
+
+function LeyendaConfianza() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 12,
+        fontSize: 10,
+        color: 'var(--color-text-muted)',
+        padding: '8px 2px 0',
+      }}
+    >
+      <span>Confianza:</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <PuntoConfianza valor={0.95} /> alta
+      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <PuntoConfianza valor={0.8} /> media
+      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <PuntoConfianza valor={0.5} /> baja
+      </span>
+    </div>
   );
 }
 
@@ -60,15 +88,9 @@ interface DefinicionCampo {
   tipo: 'texto' | 'numero' | 'fecha' | 'medioPago' | 'tipoDocumento';
 }
 
-function construirCampos(factura: FacturaDetalleDto): DefinicionCampo[] {
+/** Campos clave del encabezado — se muestran en la rejilla de 2 columnas del diseño. */
+function construirCamposClave(factura: FacturaDetalleDto): DefinicionCampo[] {
   return [
-    {
-      campoPublico: 'tipoDocumento',
-      etiqueta: 'Tipo de documento',
-      valorMostrado: factura.tipoDocumento ? ETIQUETA_TIPO_DOCUMENTO[factura.tipoDocumento] : '—',
-      valorEdicion: factura.tipoDocumento ?? '',
-      tipo: 'tipoDocumento',
-    },
     {
       campoPublico: 'comercioNombre',
       campoConfianza: 'comercioNombre',
@@ -80,7 +102,7 @@ function construirCampos(factura: FacturaDetalleDto): DefinicionCampo[] {
     {
       campoPublico: 'comercioNIT',
       campoConfianza: 'comercioNIT',
-      etiqueta: 'NIT del comercio',
+      etiqueta: 'NIT',
       valorMostrado: factura.comercioNIT ?? '—',
       valorEdicion: factura.comercioNIT ?? '',
       tipo: 'texto',
@@ -88,10 +110,25 @@ function construirCampos(factura: FacturaDetalleDto): DefinicionCampo[] {
     {
       campoPublico: 'fechaHoraCompra',
       campoConfianza: 'fechaHoraCompra',
-      etiqueta: 'Fecha y hora de compra',
+      etiqueta: 'Fecha y hora',
       valorMostrado: formatearFecha(factura.fechaHoraCompra),
       valorEdicion: factura.fechaHoraCompra ?? '',
       tipo: 'fecha',
+    },
+    {
+      campoPublico: 'medioPago',
+      campoConfianza: 'medioPago',
+      etiqueta: 'Medio de pago',
+      valorMostrado: factura.medioPago ? ETIQUETA_MEDIO_PAGO[factura.medioPago] : '—',
+      valorEdicion: factura.medioPago ?? '',
+      tipo: 'medioPago',
+    },
+    {
+      campoPublico: 'tipoDocumento',
+      etiqueta: 'Tipo de documento',
+      valorMostrado: factura.tipoDocumento ? ETIQUETA_TIPO_DOCUMENTO[factura.tipoDocumento] : '—',
+      valorEdicion: factura.tipoDocumento ?? '',
+      tipo: 'tipoDocumento',
     },
     {
       campoPublico: 'moneda',
@@ -101,6 +138,35 @@ function construirCampos(factura: FacturaDetalleDto): DefinicionCampo[] {
       valorEdicion: factura.moneda,
       tipo: 'texto',
     },
+    {
+      campoPublico: 'adquirienteNombre',
+      campoConfianza: 'adquirienteNombre',
+      etiqueta: 'Adquiriente',
+      valorMostrado: factura.adquirienteNombre ?? '—',
+      valorEdicion: factura.adquirienteNombre ?? '',
+      tipo: 'texto',
+    },
+    {
+      campoPublico: 'adquirienteIdentificacion',
+      campoConfianza: 'adquirienteIdentificacion',
+      etiqueta: 'Identificación',
+      valorMostrado: factura.adquirienteIdentificacion ?? '—',
+      valorEdicion: factura.adquirienteIdentificacion ?? '',
+      tipo: 'texto',
+    },
+    {
+      campoPublico: 'cufe',
+      etiqueta: factura.cufeOrigen === 'ocr_respaldo' ? 'CUFE (por OCR)' : 'CUFE',
+      valorMostrado: factura.cufe ?? '—',
+      valorEdicion: factura.cufe ?? '',
+      tipo: 'texto',
+    },
+  ];
+}
+
+/** Montos del resumen de totales — mismo mecanismo de corrección, otra presentación. */
+function construirCamposTotales(factura: FacturaDetalleDto): DefinicionCampo[] {
+  return [
     {
       campoPublico: 'subtotal',
       campoConfianza: 'subtotalCentavos',
@@ -125,58 +191,30 @@ function construirCampos(factura: FacturaDetalleDto): DefinicionCampo[] {
       valorEdicion: factura.propinaCentavos !== null ? String(factura.propinaCentavos) : '',
       tipo: 'numero',
     },
-    {
-      campoPublico: 'total',
-      campoConfianza: 'totalCentavos',
-      etiqueta: 'Total',
-      valorMostrado: formatearCentavos(factura.totalCentavos, factura.moneda),
-      valorEdicion: factura.totalCentavos !== null ? String(factura.totalCentavos) : '',
-      tipo: 'numero',
-    },
-    {
-      campoPublico: 'medioPago',
-      campoConfianza: 'medioPago',
-      etiqueta: 'Medio de pago',
-      valorMostrado: factura.medioPago ? ETIQUETA_MEDIO_PAGO[factura.medioPago] : '—',
-      valorEdicion: factura.medioPago ?? '',
-      tipo: 'medioPago',
-    },
-    {
-      campoPublico: 'adquirienteNombre',
-      campoConfianza: 'adquirienteNombre',
-      etiqueta: 'Nombre del adquiriente',
-      valorMostrado: factura.adquirienteNombre ?? '—',
-      valorEdicion: factura.adquirienteNombre ?? '',
-      tipo: 'texto',
-    },
-    {
-      campoPublico: 'adquirienteIdentificacion',
-      campoConfianza: 'adquirienteIdentificacion',
-      etiqueta: 'Identificación del adquiriente',
-      valorMostrado: factura.adquirienteIdentificacion ?? '—',
-      valorEdicion: factura.adquirienteIdentificacion ?? '',
-      tipo: 'texto',
-    },
-    {
-      campoPublico: 'cufe',
-      etiqueta: `CUFE${factura.cufeOrigen === 'ocr_respaldo' ? ' (leído como respaldo, no de QR)' : ''}`,
-      valorMostrado: factura.cufe ?? '—',
-      valorEdicion: factura.cufe ?? '',
-      tipo: 'texto',
-    },
   ];
 }
 
-function FilaCampoEditable({
+/** Última corrección registrada por campo, para el badge "Corregido" (FR-005). */
+function ultimaCorreccionPorCampo(correcciones: CorreccionManualDto[]): Map<string, CorreccionManualDto> {
+  const mapa = new Map<string, CorreccionManualDto>();
+  for (const correccion of correcciones) {
+    const previa = mapa.get(correccion.campo);
+    if (!previa || correccion.corregidoEn > previa.corregidoEn) {
+      mapa.set(correccion.campo, correccion);
+    }
+  }
+  return mapa;
+}
+
+function EditorCampo({
   definicion,
-  confianza,
   onGuardar,
+  onCancelar,
 }: {
   definicion: DefinicionCampo;
-  confianza: number | undefined;
   onGuardar: (campo: string, valor: string) => Promise<void>;
+  onCancelar: () => void;
 }) {
-  const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState(definicion.valorEdicion);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,70 +225,141 @@ function FilaCampoEditable({
     setError(null);
     try {
       await onGuardar(definicion.campoPublico, valor);
-      setEditando(false);
+      onCancelar();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar la corrección');
-    } finally {
       setGuardando(false);
     }
   }
 
+  const estiloControl = {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    fontFamily: 'var(--font-body)',
+    fontSize: 14,
+    color: 'var(--color-text)',
+    background: 'transparent',
+    border: '1px solid var(--color-accent)',
+    borderRadius: 'var(--radius-button)',
+    padding: '4px 6px',
+  };
+
   return (
-    <tr>
-      <th style={{ textAlign: 'left', verticalAlign: 'top' }}>
-        {definicion.etiqueta}
-        {definicion.campoConfianza && <PuntoConfianza valor={confianza} />}
-      </th>
-      <td>
-        {editando ? (
-          <form onSubmit={manejarSubmit} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {definicion.tipo === 'medioPago' ? (
-              <select value={valor} onChange={(e) => setValor(e.target.value)}>
-                <option value="">—</option>
-                {OPCIONES_MEDIO_PAGO.map((opcion) => (
-                  <option key={opcion} value={opcion}>
-                    {ETIQUETA_MEDIO_PAGO[opcion]}
-                  </option>
-                ))}
-              </select>
-            ) : definicion.tipo === 'tipoDocumento' ? (
-              <select value={valor} onChange={(e) => setValor(e.target.value)}>
-                <option value="">—</option>
-                {OPCIONES_TIPO_DOCUMENTO.map((opcion) => (
-                  <option key={opcion} value={opcion}>
-                    {ETIQUETA_TIPO_DOCUMENTO[opcion]}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input value={valor} onChange={(e) => setValor(e.target.value)} disabled={guardando} />
-            )}
-            <button type="submit" disabled={guardando}>
-              {guardando ? 'Guardando…' : 'Guardar'}
-            </button>
-            <button type="button" onClick={() => setEditando(false)} disabled={guardando}>
-              Cancelar
-            </button>
-          </form>
-        ) : (
-          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {definicion.valorMostrado}
-            <button type="button" onClick={() => setEditando(true)}>
-              Corregir
-            </button>
-          </span>
-        )}
-        {error && <p role="alert">{error}</p>}
-      </td>
-    </tr>
+    <form onSubmit={manejarSubmit} style={{ marginTop: 2 }}>
+      {definicion.tipo === 'medioPago' ? (
+        <select value={valor} onChange={(e) => setValor(e.target.value)} style={estiloControl}>
+          <option value="">—</option>
+          {OPCIONES_MEDIO_PAGO.map((opcion) => (
+            <option key={opcion} value={opcion}>
+              {ETIQUETA_MEDIO_PAGO[opcion]}
+            </option>
+          ))}
+        </select>
+      ) : definicion.tipo === 'tipoDocumento' ? (
+        <select value={valor} onChange={(e) => setValor(e.target.value)} style={estiloControl}>
+          <option value="">—</option>
+          {OPCIONES_TIPO_DOCUMENTO.map((opcion) => (
+            <option key={opcion} value={opcion}>
+              {ETIQUETA_TIPO_DOCUMENTO[opcion]}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          autoFocus
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          disabled={guardando}
+          style={estiloControl}
+        />
+      )}
+      {error && (
+        <p role="alert" style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-estado-fallida-fg)' }}>
+          {error}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        <button type="submit" className="btn-primary" disabled={guardando} style={{ fontSize: 11, padding: '3px 8px' }}>
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button type="button" onClick={onCancelar} disabled={guardando} style={{ fontSize: 11, padding: '3px 8px' }}>
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 
-export default function Detalle({ facturaId, onVolver }: { facturaId: string; onVolver: () => void }) {
+/** Celda de la rejilla de campos clave — toda la celda es tocable para editar. */
+function CeldaCampo({
+  definicion,
+  confianza,
+  correccion,
+  tema,
+  editando,
+  onEditar,
+  onCancelar,
+  onGuardar,
+}: {
+  definicion: DefinicionCampo;
+  confianza: number | undefined;
+  correccion: CorreccionManualDto | undefined;
+  tema: TemaResuelto;
+  editando: boolean;
+  onEditar: () => void;
+  onCancelar: () => void;
+  onGuardar: (campo: string, valor: string) => Promise<void>;
+}) {
+  const IconoEditar = obtenerIcono('editar', tema);
+
+  return (
+    <div className="celda-campo">
+      <div className="etiqueta-campo">
+        {definicion.etiqueta}
+        {definicion.campoConfianza && <PuntoConfianza valor={confianza} />}
+        <IconoEditar size={10} />
+      </div>
+      {editando ? (
+        <EditorCampo definicion={definicion} onGuardar={onGuardar} onCancelar={onCancelar} />
+      ) : (
+        <button type="button" onClick={onEditar} className="valor-campo" title="Tocar para corregir">
+          <span style={{ wordBreak: 'break-word' }}>
+            {definicion.valorMostrado}
+            {correccion && <span className="badge-corregido">Corregido</span>}
+          </span>
+          {correccion && (
+            <span
+              style={{
+                display: 'block',
+                fontSize: 11,
+                color: 'var(--color-text-muted-2)',
+                textDecoration: 'line-through',
+              }}
+            >
+              original: {correccion.valorExtraidoOriginal}
+            </span>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function Detalle({
+  tema,
+  facturaId,
+  onVolver,
+}: {
+  tema: TemaResuelto;
+  facturaId: string;
+  onVolver: () => void;
+}) {
   const [factura, setFactura] = useState<FacturaDetalleDto | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reprocesando, setReprocesando] = useState(false);
+  const [fotoVisible, setFotoVisible] = useState(false);
+  const [campoEnEdicion, setCampoEnEdicion] = useState<string | null>(null);
 
   async function cargar() {
     setCargando(true);
@@ -286,138 +395,325 @@ export default function Detalle({ facturaId, onVolver }: { facturaId: string; on
     }
   }
 
+  const IconoVolver = obtenerIcono('volver', tema);
+  const IconoCheck = obtenerIcono('check', tema);
+  const IconoAlerta = obtenerIcono('alerta', tema);
+
   if (cargando) {
-    return <p>Cargando…</p>;
+    return <p style={{ padding: 20, fontFamily: 'var(--font-body)' }}>Cargando…</p>;
   }
 
   if (!factura) {
     return (
-      <section>
-        <button type="button" onClick={onVolver}>
-          ← Volver
+      <section style={{ padding: 20, fontFamily: 'var(--font-body)' }}>
+        <button type="button" onClick={onVolver} className="boton-icono" aria-label="Volver">
+          <IconoVolver size={17} />
         </button>
         <p role="alert">{error ?? 'Factura no encontrada'}</p>
       </section>
     );
   }
 
-  return (
-    <section>
-      <button type="button" onClick={onVolver}>
-        ← Volver
-      </button>
+  const correcciones = ultimaCorreccionPorCampo(factura.correcciones);
+  const esElegible = factura.elegibilidadTributaria === true;
 
-      <h1>
-        {factura.comercioNombre ?? 'Factura sin comercio identificado'} —{' '}
-        <strong>{ETIQUETA_ESTADO[factura.estado]}</strong>
-      </h1>
+  function renderCampo(definicion: DefinicionCampo) {
+    return (
+      <CeldaCampo
+        key={definicion.campoPublico}
+        definicion={definicion}
+        confianza={
+          definicion.campoConfianza && factura ? factura.confianzaCampos[definicion.campoConfianza] : undefined
+        }
+        correccion={correcciones.get(definicion.campoPublico)}
+        tema={tema}
+        editando={campoEnEdicion === definicion.campoPublico}
+        onEditar={() => setCampoEnEdicion(definicion.campoPublico)}
+        onCancelar={() => setCampoEnEdicion(null)}
+        onGuardar={guardarCorreccion}
+      />
+    );
+  }
+
+  return (
+    <section style={{ padding: '4px 20px 24px', fontFamily: 'var(--font-body)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <button type="button" onClick={onVolver} className="boton-icono" aria-label="Volver">
+          <IconoVolver size={17} />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 24, lineHeight: 1 }}>
+            {factura.comercioNombre ?? 'Factura sin comercio'}
+          </h1>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>
+            {formatearFecha(factura.fechaHoraCompra)} · {ETIQUETA_ESTADO[factura.estado]}
+          </p>
+        </div>
+      </header>
 
       {error && <p role="alert">{error}</p>}
 
+      {fotoVisible && (
+        <img
+          src={urlImagenFactura(factura.id)}
+          alt="Factura original"
+          style={{
+            width: '100%',
+            maxHeight: 220,
+            objectFit: 'cover',
+            border: 'var(--card-border)',
+            borderRadius: 'var(--radius-card)',
+          }}
+        />
+      )}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0 2px' }}>
+        <button
+          type="button"
+          onClick={() => setFotoVisible((actual) => !actual)}
+          className="heading titulo-pantalla"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--color-accent-fg-tint)',
+            fontSize: 11,
+            letterSpacing: '0.06em',
+            cursor: 'pointer',
+          }}
+        >
+          {fotoVisible ? 'Ocultar foto' : 'Mostrar foto'}
+        </button>
+      </div>
+
       {factura.elegibilidadTributaria !== null && (
-        <div style={{ border: '1px solid #ccc', borderRadius: 4, padding: 12, margin: '12px 0' }}>
-          <p style={{ margin: 0 }}>
-            <strong>
-              {factura.elegibilidadTributaria
-                ? 'Elegible para deducción del 1%'
-                : factura.elegibilidadMotivo}
-            </strong>
-          </p>
-          <p style={{ margin: '4px 0 0', fontSize: '0.85em', color: '#666' }}>
-            El sistema organiza, no emite concepto tributario — revisa esta clasificación con tu
-            contador antes de usarla en tu declaración de renta.
-          </p>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            border: `1px solid ${esElegible ? 'var(--color-estado-extraida-fg)' : 'var(--color-estado-revision-fg)'}`,
+            borderRadius: 'var(--radius-card)',
+            padding: '10px 12px',
+            marginTop: 8,
+          }}
+        >
+          {esElegible ? (
+            <IconoCheck size={20} color="var(--color-estado-extraida)" />
+          ) : (
+            <IconoAlerta size={20} color="var(--color-estado-revision)" />
+          )}
+          <div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: esElegible ? 'var(--color-estado-extraida)' : 'var(--color-estado-revision)',
+              }}
+            >
+              {esElegible ? 'Elegible para deducción del 1%' : factura.elegibilidadMotivo}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+              El sistema organiza, no emite concepto tributario — revísalo con tu contador antes de
+              usarlo en tu declaración de renta.
+            </div>
+          </div>
         </div>
       )}
 
       {factura.estado === 'fallida' && (
         <p>
-          <button type="button" onClick={manejarReprocesar} disabled={reprocesando}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={manejarReprocesar}
+            disabled={reprocesando}
+            style={{ padding: '8px 14px' }}
+          >
             {reprocesando ? 'Reprocesando…' : 'Reintentar extracción'}
           </button>
         </p>
       )}
 
-      <details>
-        <summary>Ver foto original</summary>
-        <img
-          src={urlImagenFactura(factura.id)}
-          alt="Factura original"
-          style={{ maxWidth: '100%', marginTop: 8 }}
-        />
-      </details>
+      <LeyendaConfianza />
 
-      <h2>Campos extraídos</h2>
-      <table>
-        <tbody>
-          {construirCampos(factura).map((definicion) => (
-            <FilaCampoEditable
-              key={definicion.campoPublico}
-              definicion={definicion}
-              confianza={
-                definicion.campoConfianza ? factura.confianzaCampos[definicion.campoConfianza] : undefined
-              }
-              onGuardar={guardarCorreccion}
-            />
-          ))}
-        </tbody>
-      </table>
+      <div className="rejilla-campos">{construirCamposClave(factura).map(renderCampo)}</div>
 
-      <h2>Ítems</h2>
+      <p className="kicker" style={{ color: 'var(--color-text-muted-2)', padding: '14px 0 2px' }}>
+        Ítems · {factura.items.length}
+      </p>
       {factura.items.length === 0 ? (
-        <p>Sin ítems extraídos.</p>
+        <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin ítems extraídos.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Descripción</th>
-              <th>Cantidad</th>
-              <th>Valor unitario</th>
-              <th>Valor total</th>
-              <th>Confianza</th>
-            </tr>
-          </thead>
-          <tbody>
-            {factura.items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.descripcion ?? '—'}</td>
-                <td>{item.cantidad ?? '—'}</td>
-                <td>{formatearCentavos(item.valorUnitarioCentavos, factura.moneda)}</td>
-                <td>{formatearCentavos(item.valorTotalCentavos, factura.moneda)}</td>
-                <td>
-                  <PuntoConfianza valor={item.nivelConfianza} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ fontSize: 13 }}>
+          {factura.items.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: 'flex',
+                gap: 8,
+                padding: '5px 0',
+                borderBottom: '1px solid var(--color-border-strong)',
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0 }}>{item.descripcion ?? '—'}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{item.cantidad ?? '—'}</span>
+              <span style={{ width: 74, textAlign: 'right', fontWeight: 500 }}>
+                {formatearCentavos(item.valorTotalCentavos, factura.moneda)}
+              </span>
+              <PuntoConfianza valor={item.nivelConfianza} />
+            </div>
+          ))}
+        </div>
       )}
+
+      <div
+        style={{
+          borderTop: '1px solid var(--color-border)',
+          marginTop: 10,
+          paddingTop: 8,
+          fontSize: 13,
+        }}
+      >
+        {construirCamposTotales(factura).map((definicion) => (
+          <FilaTotal
+            key={definicion.campoPublico}
+            definicion={definicion}
+            confianza={definicion.campoConfianza ? factura.confianzaCampos[definicion.campoConfianza] : undefined}
+            editando={campoEnEdicion === definicion.campoPublico}
+            onEditar={() => setCampoEnEdicion(definicion.campoPublico)}
+            onCancelar={() => setCampoEnEdicion(null)}
+            onGuardar={guardarCorreccion}
+          />
+        ))}
+
+        {factura.ivaPorTarifa.map((iva) => (
+          <div
+            key={iva.tarifa}
+            style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}
+          >
+            <span style={{ color: 'var(--color-text-muted)' }}>IVA {iva.tarifa}%</span>
+            <span style={{ fontWeight: 500 }}>{formatearCentavos(iva.valorCentavos, factura.moneda)}</span>
+          </div>
+        ))}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            padding: '6px 0 10px',
+          }}
+        >
+          <span className="heading titulo-pantalla" style={{ fontSize: 15, letterSpacing: '0.06em' }}>
+            Total
+          </span>
+          <button
+            type="button"
+            onClick={() => setCampoEnEdicion('total')}
+            className="heading"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-text)',
+              fontSize: 24,
+              cursor: 'pointer',
+              padding: 0,
+            }}
+            title="Tocar para corregir"
+          >
+            {formatearCentavos(factura.totalCentavos, factura.moneda)}
+          </button>
+        </div>
+        {campoEnEdicion === 'total' && (
+          <EditorCampo
+            definicion={{
+              campoPublico: 'total',
+              campoConfianza: 'totalCentavos',
+              etiqueta: 'Total',
+              valorMostrado: formatearCentavos(factura.totalCentavos, factura.moneda),
+              valorEdicion: factura.totalCentavos !== null ? String(factura.totalCentavos) : '',
+              tipo: 'numero',
+            }}
+            onGuardar={guardarCorreccion}
+            onCancelar={() => setCampoEnEdicion(null)}
+          />
+        )}
+      </div>
 
       {factura.correcciones.length > 0 && (
         <>
-          <h2>Correcciones manuales</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Campo</th>
-                <th>Valor extraído</th>
-                <th>Valor corregido</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {factura.correcciones.map((correccion) => (
-                <tr key={correccion.id}>
-                  <td>{correccion.campo}</td>
-                  <td>{correccion.valorExtraidoOriginal}</td>
-                  <td>{correccion.valorCorregido}</td>
-                  <td>{formatearFecha(correccion.corregidoEn)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className="kicker" style={{ color: 'var(--color-text-muted-2)', padding: '14px 0 4px' }}>
+            Correcciones manuales · {factura.correcciones.length}
+          </p>
+          <div style={{ fontSize: 12 }}>
+            {factura.correcciones.map((correccion) => (
+              <div
+                key={correccion.id}
+                style={{ padding: '4px 0', borderBottom: '1px solid var(--color-border-strong)' }}
+              >
+                <span style={{ color: 'var(--color-text-muted)' }}>{correccion.campo}: </span>
+                <span style={{ textDecoration: 'line-through', color: 'var(--color-text-muted-2)' }}>
+                  {correccion.valorExtraidoOriginal}
+                </span>
+                {' → '}
+                <span style={{ fontWeight: 500 }}>{correccion.valorCorregido}</span>
+                <span style={{ color: 'var(--color-text-muted-2)' }}> · {formatearFecha(correccion.corregidoEn)}</span>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </section>
+  );
+}
+
+function FilaTotal({
+  definicion,
+  confianza,
+  editando,
+  onEditar,
+  onCancelar,
+  onGuardar,
+}: {
+  definicion: DefinicionCampo;
+  confianza: number | undefined;
+  editando: boolean;
+  onEditar: () => void;
+  onCancelar: () => void;
+  onGuardar: (campo: string, valor: string) => Promise<void>;
+}) {
+  if (editando) {
+    return (
+      <div style={{ padding: '3px 0' }}>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{definicion.etiqueta}</span>
+        <EditorCampo definicion={definicion} onGuardar={onGuardar} onCancelar={onCancelar} />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onEditar}
+      title="Tocar para corregir"
+      style={{
+        display: 'flex',
+        width: '100%',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '3px 0',
+        background: 'transparent',
+        border: 'none',
+        color: 'var(--color-text)',
+        fontFamily: 'var(--font-body)',
+        fontSize: 13,
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {definicion.etiqueta}
+        {definicion.campoConfianza && <PuntoConfianza valor={confianza} />}
+      </span>
+      <span style={{ fontWeight: 500 }}>{definicion.valorMostrado}</span>
+    </button>
   );
 }

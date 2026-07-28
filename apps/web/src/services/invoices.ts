@@ -153,8 +153,13 @@ export async function obtenerFactura(id: string): Promise<FacturaDetalleDto> {
   return parsearRespuesta<FacturaDetalleDto>(response);
 }
 
+/**
+ * Rendición apta para navegador. Sin `variant=web` el endpoint devuelve el
+ * original tal cual, que en las fotos de iPhone es HEIC — un formato que
+ * ningún navegador sabe mostrar.
+ */
 export function urlImagenFactura(id: string): string {
-  return `${API_BASE_URL}/invoices/${id}/image`;
+  return `${API_BASE_URL}/invoices/${id}/image?variant=web`;
 }
 
 export async function corregirCampoFactura(

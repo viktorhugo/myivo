@@ -220,6 +220,36 @@ export class FacturaRepository {
   }
 
   /**
+   * Añade un archivo derivado al registro (constitution Principio I: el
+   * derivado se vincula al original, nunca lo reemplaza). Se lee y reescribe
+   * la lista completa porque `derivados` es una columna JSON, no una tabla.
+   */
+  async registrarDerivado(id: string, derivado: ArchivoDerivado): Promise<void> {
+    const fila = await this.prisma.factura.findUnique({ where: { id } });
+    if (!fila) {
+      return;
+    }
+
+    const existentes = fila.derivados as unknown as ArchivoDerivadoJson[];
+    const sinEseTipo = existentes.filter(
+      (existente) => existente.tipoTransformacion !== derivado.tipoTransformacion,
+    );
+    const actualizados: ArchivoDerivadoJson[] = [
+      ...sinEseTipo,
+      {
+        ruta: derivado.ruta,
+        tipoTransformacion: derivado.tipoTransformacion,
+        creadoEn: derivado.creadoEn.toISOString(),
+      },
+    ];
+
+    await this.prisma.factura.update({
+      where: { id },
+      data: { derivados: actualizados as unknown as Prisma.InputJsonValue },
+    });
+  }
+
+  /**
    * Lista filtrable (FR-022): todos los filtros son combinables (AND). El
    * agregado `sumaTotal` refleja el mismo filtro pero solo suma documentos
    * en COP (FR-027) — `conteo` sí incluye documentos en otras monedas,

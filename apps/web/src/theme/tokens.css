@@ -1,0 +1,488 @@
+/**
+ * Tokens de los dos temas visuales — "Industry" (claro) y "Nocturne" (oscuro).
+ * Ver specs/002-rediseno-visual-web/research.md § 1-2 para las decisiones de
+ * diseño (auto-hospedaje de fuentes, CSS puro sin librería de UI).
+ */
+
+/* Tipografías auto-hospedadas (@fontsource) — nunca vía CDN de Google Fonts */
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+
+:root {
+  color-scheme: light dark;
+}
+
+/* ============================= Industry (claro) ============================= */
+:root[data-theme='industry'] {
+  --color-bg: #f2f2f3;
+  --color-text: #1d1f20;
+  --color-text-muted: rgba(29, 31, 32, 0.55);
+  --color-text-muted-2: rgba(29, 31, 32, 0.45);
+  --color-accent: #5980a6;
+  --color-accent-fg: #f2f2f3;
+  --color-accent-bg-tint: #eef6ff;
+  --color-accent-fg-tint: #41617f;
+  --color-border: rgba(29, 31, 32, 0.18);
+  --color-border-strong: rgba(29, 31, 32, 0.08);
+
+  --color-estado-recibida: rgba(29, 31, 32, 0.55);
+  --color-estado-procesando: #5980a6;
+  --color-estado-extraida: #3d6249;
+  --color-estado-extraida-fg: #4d7c5b;
+  --color-estado-revision: #8a6423;
+  --color-estado-revision-fg: #a3742c;
+  --color-estado-fallida: #82372f;
+  --color-estado-fallida-fg: #a5473d;
+  --color-estado-varias: #6b3f66;
+  --color-estado-varias-bg: rgba(138, 90, 134, 0.13);
+
+  --font-heading: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+  --font-weight-heading: 600;
+  --font-weight-body-strong: 500;
+  --font-weight-body: 400;
+
+  --radius-card: 0;
+  --radius-button: 0;
+  --radius-fab: 0;
+  --card-bg: transparent;
+  --card-border: 1px solid var(--color-border);
+  --icon-stroke-width: 1.5;
+  --titulo-transform: uppercase;
+}
+
+/* ============================= Nocturne (oscuro) ============================= */
+:root[data-theme='nocturne'] {
+  --color-bg: #161826;
+  --color-text: #e9e9ed;
+  --color-text-muted: rgba(233, 233, 237, 0.5);
+  --color-text-muted-2: rgba(233, 233, 237, 0.45);
+  --color-accent: #9184d9;
+  --color-accent-fg: #b5abfc;
+  --color-accent-bg-tint: transparent;
+  --color-accent-fg-tint: #b5abfc;
+  --color-border: rgba(233, 233, 237, 0.16);
+  --color-border-strong: rgba(233, 233, 237, 0.09);
+
+  --color-estado-recibida: #9397ab;
+  --color-estado-procesando: #9184d9;
+  --color-estado-extraida: #7cc79a;
+  --color-estado-extraida-fg: #7cc79a;
+  --color-estado-revision: #d8a95f;
+  --color-estado-revision-fg: #d8a95f;
+  --color-estado-fallida: #e08a80;
+  --color-estado-fallida-fg: #e08a80;
+  --color-estado-varias: #d59bcf;
+  --color-estado-varias-bg: transparent;
+
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-weight-heading: 500;
+  --font-weight-body-strong: 500;
+  --font-weight-body: 400;
+
+  --radius-card: 8px;
+  --radius-button: 8px;
+  --radius-fab: 50%;
+  --card-bg: #232532;
+  --card-border: 1px solid var(--color-border);
+  --icon-stroke-width: 1.7;
+  --titulo-transform: none;
+}
+
+/* Fallback antes de que useTheme.ts aplique data-theme (evita flash sin estilos) */
+:root:not([data-theme]) {
+  --color-bg: #f2f2f3;
+  --color-text: #1d1f20;
+  --color-accent: #5980a6;
+  --font-body: 'Barlow', system-ui, sans-serif;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ============================= Componentes compartidos ============================= */
+
+.card {
+  position: relative;
+  border-radius: var(--radius-card);
+  background: var(--card-bg);
+  border: var(--card-border);
+}
+
+/* Marcas de registro "+" en las 4 esquinas — solo visibles en Industry (research.md § 2) */
+[data-theme='nocturne'] .corner-mark {
+  display: none;
+}
+
+.corner-mark {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  color: var(--color-text-muted);
+}
+.corner-mark::before,
+.corner-mark::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+.corner-mark::before {
+  left: 5px;
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+.corner-mark::after {
+  top: 5px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+.corner-mark.tl { top: -6px; left: -6px; }
+.corner-mark.tr { top: -6px; right: -6px; }
+.corner-mark.bl { bottom: -6px; left: -6px; }
+.corner-mark.br { bottom: -6px; right: -6px; }
+
+.btn-primary {
+  /* Ancla las marcas de esquina de `<MarcasEsquina />` — sin esto, un botón
+     que las use (Captura, el FAB de Listado) las posiciona respecto al
+     ancestro posicionado más cercano que encuentre, no respecto a sí mismo. */
+  position: relative;
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body-strong);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+}
+
+/* Industry: único elemento con relleno sólido. Nocturne: contorno acento, nunca relleno. */
+[data-theme='industry'] .btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border: 1px solid var(--color-accent);
+}
+[data-theme='nocturne'] .btn-primary {
+  background: transparent;
+  color: var(--color-accent-fg);
+  border: 1px solid var(--color-accent);
+}
+
+.heading {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+}
+
+/* Industry rotula los títulos en versalitas; Nocturne los deja en caja normal. */
+.titulo-pantalla {
+  text-transform: var(--titulo-transform);
+  letter-spacing: 0.02em;
+}
+[data-theme='nocturne'] .titulo-pantalla {
+  letter-spacing: -0.015em;
+}
+
+/*
+ * Fila de listado: el diseño NO la trata como tarjeta — es una fila plana con
+ * una línea separadora inferior (Industry) o un degradado que se desvanece en
+ * los extremos (Nocturne).
+ */
+.fila-listado {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+}
+[data-theme='industry'] .fila-listado {
+  border-bottom: 1px solid var(--color-border-strong);
+}
+[data-theme='nocturne'] .fila-listado {
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--color-border-strong) 24px,
+      var(--color-border-strong) calc(100% - 24px),
+      transparent
+    )
+    no-repeat bottom / 100% 1px;
+}
+
+/* Kicker de sección (mes del listado, etiqueta del total). */
+.kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Botón cuadrado de icono del encabezado (buscar / filtrar): 34x34 con borde. */
+.boton-icono {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+}
+.boton-icono.activo {
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg-tint);
+  color: var(--color-accent-fg-tint);
+}
+
+/* Rejilla de campos clave del detalle (2 columnas, como el diseño de referencia). */
+.rejilla-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+  padding-top: 6px;
+}
+.celda-campo {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--color-border-strong);
+  min-width: 0;
+}
+.etiqueta-campo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted-2);
+}
+.valor-campo {
+  display: block;
+  width: 100%;
+  margin-top: 1px;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+.badge-corregido {
+  margin-left: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent-fg-tint);
+  background: var(--color-accent-bg-tint);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-button);
+  padding: 1px 5px;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+.confianza-alta { color: var(--color-estado-extraida-fg); }
+.confianza-media { color: var(--color-estado-revision-fg); }
+.confianza-baja { color: var(--color-estado-fallida-fg); }
+
+/* Chips de filtro (spec.md § Pantalla 3 — "chips activos resaltados en acento"). */
+.chip {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  white-space: nowrap;
+}
+[data-theme='industry'] .chip.activo {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border-color: var(--color-accent);
+}
+[data-theme='nocturne'] .chip.activo {
+  background: transparent;
+  color: var(--color-accent-fg-tint);
+  border-color: var(--color-accent);
+}
+.chip select,
+.chip input {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  outline: none;
+  max-width: 84px;
+}
+/* El widget nativo de fecha es ancho; se compacta para que el chip no desborde. */
+.chip input[type='date'] {
+  max-width: 74px;
+}
+.chip input[type='number'] {
+  max-width: 56px;
+}
+.chip.activo select,
+.chip.activo input {
+  color-scheme: dark;
+}
+[data-theme='industry'] .chip:not(.activo) select,
+[data-theme='industry'] .chip:not(.activo) input {
+  color-scheme: light;
+}
+
+/* Bottom sheet "¿Es la misma compra?" (Listado — confirmación de duplicado probable). */
+.duplicado-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+[data-theme='industry'] .duplicado-backdrop { background: rgba(43, 43, 45, 0.45); }
+[data-theme='nocturne'] .duplicado-backdrop { background: rgba(5, 6, 12, 0.62); }
+
+.duplicado-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  padding: 18px 20px 30px;
+  font-family: var(--font-body);
+  color: var(--color-text);
+}
+[data-theme='industry'] .duplicado-sheet {
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -12px 32px rgba(43, 43, 45, 0.22);
+}
+[data-theme='nocturne'] .duplicado-sheet {
+  background: var(--card-bg);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 0 0 1px #3f424d, 0 -16px 40px rgba(0, 0, 0, 0.65);
+}
+
+.duplicado-handle {
+  width: 44px;
+  height: 4px;
+  margin: 0 auto 14px;
+  background: var(--color-border);
+}
+[data-theme='nocturne'] .duplicado-handle { border-radius: 3px; }
+
+.duplicado-titulo {
+  margin: 0;
+  font-size: 22px;
+}
+[data-theme='nocturne'] .duplicado-titulo { font-size: 19px; }
+
+.duplicado-subtitulo {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+[data-theme='nocturne'] .duplicado-subtitulo { font-size: 12.5px; }
+
+.duplicado-tarjetas {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+}
+[data-theme='nocturne'] .duplicado-tarjetas { gap: 12px; }
+
+/* Las tarjetas reusan `.card` (mismo tratamiento de borde/marcas de esquina que
+   el resto de la app); en Nocturne se invierte el fondo respecto a una `.card`
+   normal (`--color-bg`, no `--card-bg`) porque aquí quedan anidadas dentro de
+   un sheet que ya usa `--card-bg` como su propio fondo. */
+.duplicado-tarjeta {
+  flex: 1;
+  padding: 12px;
+  min-width: 0;
+}
+[data-theme='nocturne'] .duplicado-tarjeta { background: var(--color-bg); }
+[data-theme='industry'] .duplicado-tarjeta.acento { border-color: var(--color-accent); }
+[data-theme='nocturne'] .duplicado-tarjeta.acento {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 20px rgba(145, 132, 217, 0.18);
+}
+.duplicado-tarjeta .kicker { margin: 0; }
+.duplicado-tarjeta.acento .kicker { color: var(--color-accent-fg-tint); }
+.duplicado-tarjeta .comercio {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-theme='nocturne'] .duplicado-tarjeta .comercio { font-size: 13.5px; }
+.duplicado-tarjeta .fecha { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.duplicado-tarjeta .hora-destacada { color: var(--color-accent-fg-tint); font-weight: 600; }
+[data-theme='nocturne'] .duplicado-tarjeta .hora-destacada { font-weight: 500; }
+.duplicado-tarjeta .total {
+  margin: 6px 0 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+  font-size: 18px;
+}
+[data-theme='nocturne'] .duplicado-tarjeta .total { font-size: 17px; }
+
+/* Botón principal del sheet: mismo tratamiento relleno/outline que `.btn-primary`
+   en el resto de la app, con la tipografía condensada y el bloque a ancho
+   completo específicos de esta pantalla. */
+.duplicado-boton {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 16px;
+  padding: 12px;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+}
+[data-theme='nocturne'] .duplicado-boton {
+  font-size: 14px;
+  letter-spacing: normal;
+  padding: 11px;
+}
+
+.duplicado-boton-secundario {
+  margin-top: 10px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+}
+[data-theme='industry'] .duplicado-boton-secundario { color: var(--color-accent-fg-tint); }
+[data-theme='nocturne'] .duplicado-boton-secundario { color: var(--color-text); opacity: 0.8; }
+
+.duplicado-nota {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-muted-2);
+}

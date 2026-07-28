@@ -28,6 +28,7 @@ import { resolverDuplicadoSchema } from './dto/resolver-duplicado.dto';
 import { DuplicateMatchingService, type MarcaPendienteConFacturas } from './duplicate-matching.service';
 import { FacturaRepository, type ResultadoListado } from './factura.repository';
 import { FileStorageService } from './file-storage.service';
+import { ImagenWebService, TIPO_TRANSFORMACION_WEB } from './imagen-web.service';
 
 export interface FacturaDetalle extends Factura {
   items: ItemFactura[];
@@ -46,6 +47,7 @@ export class InvoicesController {
     private readonly fileStorage: FileStorageService,
     private readonly extractionProcessor: ExtractionProcessor,
     private readonly duplicateMatching: DuplicateMatchingService,
+    private readonly imagenWeb: ImagenWebService,
     configService: ConfigService<Env, true>,
   ) {
     this.identificacionesPropias = configService.get('MIS_IDENTIFICACIONES', { infer: true });
@@ -110,12 +112,32 @@ export class InvoicesController {
   /**
    * Sirve el byte-stream original sin importar el `estado` de la factura —
    * el fallo de un procesamiento posterior nunca implica pérdida del archivo.
+   *
+   * `?variant=web` devuelve en cambio una rendición JPEG apta para navegador:
+   * las fotos de iPhone llegan en HEIC y ningún navegador las renderiza. El
+   * original permanece intacto y siempre accesible sin el parámetro
+   * (constitution Principio I).
    */
   @Get(':id/image')
-  async imagen(@Param('id') id: string, @Res() res: Response): Promise<void> {
+  async imagen(
+    @Param('id') id: string,
+    @Query('variant') variant: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
     const factura = await this.facturaRepository.obtenerPorId(id);
     if (!factura) {
       throw new NotFoundException(`Factura ${id} no encontrada`);
+    }
+
+    if (variant === TIPO_TRANSFORMACION_WEB) {
+      const imagen = await this.imagenWeb.obtenerParaNavegador(
+        factura.id,
+        factura.rutaImagenOriginal,
+        factura.derivados,
+      );
+      res.setHeader('Content-Type', imagen.mimeType);
+      res.send(imagen.contenido);
+      return;
     }
 
     const contenido = await this.fileStorage.leer(factura.rutaImagenOriginal);

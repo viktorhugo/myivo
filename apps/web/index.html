@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MyIvo</title>
+    <script>
+      (function () {
+        var CLAVE = 'myivo-tema';
+        var preferencia = localStorage.getItem(CLAVE) || 'system';
+        var esOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var resuelto = preferencia === 'system' ? (esOscuro ? 'nocturne' : 'industry') : preferencia;
+        document.documentElement.setAttribute('data-theme', resuelto);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
