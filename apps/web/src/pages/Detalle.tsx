@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   corregirCampoFactura,
+  eliminarFactura,
   obtenerFactura,
   reprocesarFactura,
   urlImagenFactura,
@@ -17,6 +18,7 @@ import {
 } from '../etiquetas';
 import { formatearCentavos, formatearFecha } from '../format';
 import { obtenerIcono } from '../theme/iconos';
+import MarcasEsquina from '../theme/MarcasEsquina';
 import type { TemaResuelto } from '../theme/useTheme';
 
 /** Debe coincidir con UMBRAL_CONFIANZA_BAJA en packages/domain/src/tax-rules/cuadre-monetario.ts. */
@@ -345,6 +347,100 @@ function CeldaCampo({
   );
 }
 
+/**
+ * Menú "···" con la única acción disponible por ahora (eliminar), con
+ * confirmación explícita antes de ejecutar (spec.md US2, Acceptance Scenario
+ * 3) — sin esto sería demasiado fácil perder de vista una factura por error.
+ */
+function MenuAcciones({
+  tema,
+  onEliminar,
+  eliminando,
+}: {
+  tema: TemaResuelto;
+  onEliminar: () => void;
+  eliminando: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const IconoMenu = obtenerIcono('menu', tema);
+  const IconoEliminar = obtenerIcono('eliminar', tema);
+
+  function cerrar() {
+    setAbierto(false);
+    setConfirmando(false);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="boton-icono"
+        aria-label="Más acciones"
+        aria-expanded={abierto}
+        onClick={() => (abierto ? cerrar() : setAbierto(true))}
+        style={{ flex: 'none' }}
+      >
+        <IconoMenu size={17} />
+      </button>
+      {abierto && (
+        <>
+          {/* Cierra al tocar fuera — el menú se ancla al <header> (position:relative), no a este botón. */}
+          <div className="menu-contextual-backdrop" onClick={cerrar} />
+          <div className="card menu-contextual">
+            <MarcasEsquina />
+            {!confirmando ? (
+              <button
+                type="button"
+                onClick={() => setConfirmando(true)}
+                className="menu-contextual-item peligro"
+              >
+                <IconoEliminar size={15} />
+                Eliminar factura
+              </button>
+            ) : (
+              <div style={{ padding: '10px 14px', fontFamily: 'var(--font-body)' }}>
+                <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  ¿Eliminar esta factura? El registro y la foto original quedan recuperables — solo
+                  deja de aparecer en tu listado.
+                </p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={onEliminar}
+                    disabled={eliminando}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: 'var(--color-estado-fallida-fg)',
+                      color: 'var(--color-bg)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-button)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {eliminando ? 'Eliminando…' : 'Sí, eliminar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cerrar}
+                    disabled={eliminando}
+                    style={{ flex: 1, padding: '6px 8px', fontSize: 12, cursor: 'pointer' }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function Detalle({
   tema,
   facturaId,
@@ -358,6 +454,7 @@ export default function Detalle({
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reprocesando, setReprocesando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [fotoVisible, setFotoVisible] = useState(false);
   const [campoEnEdicion, setCampoEnEdicion] = useState<string | null>(null);
 
@@ -392,6 +489,19 @@ export default function Detalle({
       setError(err instanceof Error ? err.message : 'No se pudo reprocesar la factura');
     } finally {
       setReprocesando(false);
+    }
+  }
+
+  /** Tras eliminar, la factura deja de ser accesible por GET (FR-009) — se vuelve al listado. */
+  async function manejarEliminar() {
+    setEliminando(true);
+    setError(null);
+    try {
+      await eliminarFactura(facturaId);
+      onVolver();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo eliminar la factura');
+      setEliminando(false);
     }
   }
 
@@ -437,7 +547,7 @@ export default function Detalle({
 
   return (
     <section style={{ padding: '4px 20px 24px', fontFamily: 'var(--font-body)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, position: 'relative' }}>
         <button type="button" onClick={onVolver} className="boton-icono" aria-label="Volver">
           <IconoVolver size={17} />
         </button>
@@ -449,6 +559,7 @@ export default function Detalle({
             {formatearFecha(factura.fechaHoraCompra)} · {ETIQUETA_ESTADO[factura.estado]}
           </p>
         </div>
+        <MenuAcciones tema={tema} onEliminar={manejarEliminar} eliminando={eliminando} />
       </header>
 
       {error && <p role="alert">{error}</p>}

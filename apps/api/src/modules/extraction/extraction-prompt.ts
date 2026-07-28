@@ -17,6 +17,7 @@ Reglas estrictas:
 - "ivaPorTarifa" es un arreglo con una entrada por cada tarifa de IVA desglosada en el documento (p. ej. 19%, 5%), cada una con su "tarifa" (número, p. ej. 19) y su "valorCentavos".
 - "medioPago" solo si aparece explícitamente en el documento, uno de: efectivo, tarjeta_debito, tarjeta_credito, transferencia_pse, billetera_digital. null si no es visible o no calza con ninguna opción.
 - "cufeImpreso": transcribe un CUFE/CUDE SOLO si aparece como texto impreso (cadena alfanumérica larga, normalmente cerca de un código QR). Nunca intentes leer ni interpretar el código QR en sí — eso lo hace un proceso determinístico aparte. Si no hay CUFE impreso en texto, usa null.
+- "múltiplesDocumentos": true SOLO si la imagen muestra claramente más de un documento de compra físico distinto (p. ej. dos tiquetes o facturas separadas fotografiados juntos en el mismo encuadre). false en el caso normal de un solo documento — incluye facturas con muchas líneas de ítems, que siguen siendo un solo documento. Ante la duda, usa false y deja que el resto de los campos se extraigan con normalidad.
 - "items": una entrada por cada línea de producto o servicio, con su propia "confianza".
 - "confianzaCampos": un número entre 0 y 1 por cada campo de nivel superior que sí hayas podido extraer (no lo incluyas si el valor es null), reflejando qué tan seguro estás de haberlo leído correctamente.
 - Es una foto tomada con celular: puede estar inclinada, con reflejos, o parcialmente cortada. Ante la duda, reporta con menor confianza en vez de adivinar.`;
@@ -27,7 +28,7 @@ export const EXTRACTION_USER_MESSAGE = 'Extrae los datos estructurados de esta f
 export const EXTRACTION_SCHEMA_NAME = 'datos_factura';
 
 /** Versión del prompt de arriba — sube este número si el texto cambia de forma significativa (queda en ExtraccionCruda para trazabilidad). */
-export const VERSION_PROMPT_EXTRACCION = 'v1';
+export const VERSION_PROMPT_EXTRACCION = 'v2';
 
 const RESPONSE_JSON_SCHEMA_TEXTO = JSON.stringify(z.toJSONSchema(extractedInvoiceDataSchema));
 

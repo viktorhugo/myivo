@@ -26,8 +26,8 @@ export type ConfianzaCampos = Partial<Record<CampoConConfianza, number>>;
 
 /**
  * Campos de captura (US1) + extracción (US2) + clasificación tributaria
- * (US3) de `data-model.md`. El soft-delete (`eliminadaEn`) se agrega en
- * User Story 4/5, cuando exista lógica que lo produzca.
+ * (US3) de `data-model.md`, más el soft-delete (`eliminadaEn`) de
+ * specs/002-rediseno-visual-web User Story 2.
  */
 export interface Factura {
   id: string;
@@ -60,4 +60,7 @@ export interface Factura {
 
   creadaEn: Date;
   actualizadaEn: Date;
+
+  /** Soft-delete (FR-009): no nulo significa que la factura MUST quedar excluida de toda lectura por defecto. */
+  eliminadaEn: Date | null;
 }

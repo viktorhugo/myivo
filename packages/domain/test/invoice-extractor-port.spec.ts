@@ -15,6 +15,7 @@ function datosValidos() {
     adquirienteNombre: null,
     adquirienteIdentificacion: null,
     cufeImpreso: null,
+    múltiplesDocumentos: false,
     items: [
       {
         descripcion: 'Pan',
@@ -68,5 +69,20 @@ describe('validarExtraccion', () => {
   it('rechaza cuando falta un campo requerido del contrato', () => {
     const { moneda: _moneda, ...datosSinMoneda } = datosValidos();
     expect(() => validarExtraccion(datosSinMoneda)).toThrow();
+  });
+
+  it('acepta múltiplesDocumentos true', () => {
+    const datos = { ...datosValidos(), múltiplesDocumentos: true };
+    expect(validarExtraccion(datos).múltiplesDocumentos).toBe(true);
+  });
+
+  it('rechaza cuando falta múltiplesDocumentos', () => {
+    const { múltiplesDocumentos: _múltiplesDocumentos, ...datosSinFlag } = datosValidos();
+    expect(() => validarExtraccion(datosSinFlag)).toThrow();
+  });
+
+  it('rechaza múltiplesDocumentos no booleano', () => {
+    const datos = { ...datosValidos(), múltiplesDocumentos: 'si' };
+    expect(() => validarExtraccion(datos)).toThrow();
   });
 });

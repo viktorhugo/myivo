@@ -486,3 +486,139 @@ body {
   font-size: 11px;
   color: var(--color-text-muted-2);
 }
+
+/*
+ * Menú contextual "···" (Detalle — acciones sobre la factura). Fondo sólido
+ * explícito, no `--card-bg` heredado de `.card`: en Industry ese token es
+ * transparent (correcto para tarjetas integradas al flujo), pero un menú
+ * flotante sobre contenido necesita ocultarlo para ser legible.
+ */
+.menu-contextual-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+[data-theme='industry'] .menu-contextual-backdrop { background: rgba(43, 43, 45, 0.4); }
+[data-theme='nocturne'] .menu-contextual-backdrop { background: rgba(5, 6, 12, 0.55); }
+
+.menu-contextual {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 21;
+  width: 210px;
+}
+[data-theme='industry'] .menu-contextual { background: var(--color-bg); }
+[data-theme='nocturne'] .menu-contextual {
+  background: var(--card-bg);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.menu-contextual-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+}
+.menu-contextual-item.peligro {
+  color: var(--color-estado-fallida-fg);
+}
+
+/*
+ * Estado vacío (Listado — biblioteca sin ninguna factura, sin filtros
+ * activos). Industry centra todo el bloque; Nocturne lo alinea a la
+ * izquierda — diferencia real del diseño de referencia, no una omisión.
+ */
+.estado-vacio {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Chrome bar (44px) + header de la pantalla (~51px) — centra el bloque en
+     el espacio vertical real disponible, como hace el mockup dentro del alto
+     fijo del phone frame. */
+  min-height: calc(100dvh - 95px);
+}
+/* El diseño limita el ancho de línea con padding:40px/36px sobre el frame
+   completo (392px); la `<section>` de Listado ya aporta 20px, se suma el resto. */
+[data-theme='industry'] .estado-vacio {
+  align-items: center;
+  text-align: center;
+  padding: 0 20px;
+}
+[data-theme='nocturne'] .estado-vacio {
+  align-items: flex-start;
+  text-align: left;
+  padding: 0 16px;
+}
+
+.estado-vacio-icono {
+  position: relative;
+  width: 96px;
+  height: 118px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+[data-theme='industry'] .estado-vacio-icono {
+  background: repeating-linear-gradient(45deg, var(--color-bg) 0 7px, #e9edf2 7px 14px);
+}
+[data-theme='nocturne'] .estado-vacio-icono {
+  border-radius: 10px;
+  border: 1px solid rgba(145, 132, 217, 0.45);
+  background: var(--card-bg);
+  box-shadow: 0 0 36px rgba(145, 132, 217, 0.22);
+}
+
+.estado-vacio-titulo {
+  margin: 24px 0 0;
+  font-size: 24px;
+}
+[data-theme='nocturne'] .estado-vacio-titulo {
+  margin-top: 26px;
+  font-size: 22px;
+}
+
+.estado-vacio-subtitulo {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+[data-theme='nocturne'] .estado-vacio-subtitulo {
+  margin-top: 8px;
+  font-size: 13.5px;
+}
+
+.estado-vacio-boton {
+  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+}
+[data-theme='nocturne'] .estado-vacio-boton {
+  margin-top: 24px;
+  padding: 11px 20px;
+  font-size: 14px;
+  letter-spacing: normal;
+}
+
+.estado-vacio-nota {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted-2);
+}

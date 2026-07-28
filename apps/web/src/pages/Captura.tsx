@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } fro
 import { obtenerFactura, subirFacturas, urlImagenFactura, type FacturaDto } from '../services/invoices';
 import { ETIQUETA_ESTADO } from '../etiquetas';
 import { formatearCentavos } from '../format';
-import { obtenerIcono } from '../theme/iconos';
+import { obtenerIcono, type NombreIcono } from '../theme/iconos';
 import MarcasEsquina from '../theme/MarcasEsquina';
 import type { TemaResuelto } from '../theme/useTheme';
 
@@ -14,6 +14,16 @@ const COLOR_VAR_ESTADO: Record<FacturaDto['estado'], string> = {
   extraída: 'var(--color-estado-extraida-fg)',
   necesita_revisión: 'var(--color-estado-revision-fg)',
   fallida: 'var(--color-estado-fallida-fg)',
+  varias_facturas: 'var(--color-estado-varias)',
+};
+
+const ICONO_POR_ESTADO: Record<FacturaDto['estado'], NombreIcono> = {
+  recibida: 'reloj',
+  procesando: 'cargando',
+  extraída: 'check',
+  necesita_revisión: 'alerta',
+  fallida: 'error',
+  varias_facturas: 'capas',
 };
 
 export default function Captura({
@@ -30,6 +40,7 @@ export default function Captura({
   const [error, setError] = useState<string | null>(null);
   const facturasRef = useRef(facturas);
   facturasRef.current = facturas;
+  const inputCamaraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const intervalo = setInterval(async () => {
@@ -82,6 +93,7 @@ export default function Captura({
         <label className="btn-primary" style={{ ...botonGrande, opacity: subiendo ? 0.6 : 1 }}>
           <MarcasEsquina />
           <input
+            ref={inputCamaraRef}
             type="file"
             accept="image/*"
             capture="environment"
@@ -129,7 +141,13 @@ export default function Captura({
 
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {facturas.map((factura) => (
-          <FilaCaptura key={factura.id} factura={factura} tema={tema} onAbrir={() => onSeleccionar(factura.id)} />
+          <FilaCaptura
+            key={factura.id}
+            factura={factura}
+            tema={tema}
+            onAbrir={() => onSeleccionar(factura.id)}
+            onRecapturar={() => inputCamaraRef.current?.click()}
+          />
         ))}
       </ul>
 
@@ -144,32 +162,67 @@ function FilaCaptura({
   factura,
   tema,
   onAbrir,
+  onRecapturar,
 }: {
   factura: FacturaDto;
   tema: TemaResuelto;
   onAbrir: () => void;
+  onRecapturar: () => void;
 }) {
-  const IconoEstado = obtenerIcono(
-    factura.estado === 'recibida'
-      ? 'reloj'
-      : factura.estado === 'procesando'
-        ? 'cargando'
-        : factura.estado === 'extraída'
-          ? 'check'
-          : factura.estado === 'necesita_revisión'
-            ? 'alerta'
-            : 'error',
-    tema,
+  const IconoEstado = obtenerIcono(ICONO_POR_ESTADO[factura.estado], tema);
+
+  const miniatura = (
+    <img
+      src={urlImagenFactura(factura.id)}
+      alt=""
+      style={{ width: 48, height: 62, objectFit: 'cover', border: '1px solid var(--color-border)', flex: 'none' }}
+    />
   );
+
+  const badgeEstado = (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        color: COLOR_VAR_ESTADO[factura.estado],
+        flex: 'none',
+      }}
+    >
+      <IconoEstado size={14} />
+      {ETIQUETA_ESTADO[factura.estado]}
+    </span>
+  );
+
+  // Estado terminal sin datos que ver (data-model.md): no tiene sentido abrir
+  // un detalle vacío, así que la fila no es un botón — solo "Separar y
+  // recapturar" es interactivo, para no anidar controles (FR-028/US3).
+  if (factura.estado === 'varias_facturas') {
+    return (
+      <li className="fila-listado" style={{ ...botonFila, cursor: 'default' }}>
+        {miniatura}
+        <span style={{ flex: 1, textAlign: 'left' }}>
+          <span style={{ display: 'block', fontWeight: 500 }}>
+            {factura.comercioNombre ?? factura.id.slice(0, 8)}
+          </span>
+          <span style={{ display: 'block', fontSize: 12, color: 'var(--color-estado-varias)' }}>
+            Vimos varias facturas en esta foto ·{' '}
+            <button type="button" onClick={onRecapturar} style={botonEnlaceInline}>
+              Separar y recapturar
+            </button>
+          </span>
+        </span>
+        {badgeEstado}
+      </li>
+    );
+  }
 
   return (
     <li className="fila-listado">
       <button type="button" onClick={onAbrir} style={{ ...botonFila }}>
-        <img
-          src={urlImagenFactura(factura.id)}
-          alt=""
-          style={{ width: 48, height: 62, objectFit: 'cover', border: '1px solid var(--color-border)', flex: 'none' }}
-        />
+        {miniatura}
         <span style={{ flex: 1, textAlign: 'left' }}>
           <span style={{ display: 'block', fontWeight: 500 }}>
             {factura.comercioNombre ?? factura.id.slice(0, 8)}
@@ -180,20 +233,7 @@ function FilaCaptura({
               : ETIQUETA_ESTADO[factura.estado]}
           </span>
         </span>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: 11,
-            fontWeight: 600,
-            color: COLOR_VAR_ESTADO[factura.estado],
-            flex: 'none',
-          }}
-        >
-          <IconoEstado size={14} />
-          {ETIQUETA_ESTADO[factura.estado]}
-        </span>
+        {badgeEstado}
       </button>
     </li>
   );
@@ -214,6 +254,18 @@ const botonGrande: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   padding: '18px 0',
+  cursor: 'pointer',
+};
+
+const botonEnlaceInline: CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  padding: 0,
+  font: 'inherit',
+  fontWeight: 600,
+  color: 'inherit',
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
   cursor: 'pointer',
 };
 

@@ -1,5 +1,5 @@
 export type FacturaEstado =
-  'recibida' | 'procesando' | 'extraída' | 'necesita_revisión' | 'fallida';
+  'recibida' | 'procesando' | 'extraída' | 'necesita_revisión' | 'fallida' | 'varias_facturas';
 
 export type MedioPago =
   'efectivo' | 'tarjeta_debito' | 'tarjeta_credito' | 'transferencia_pse' | 'billetera_digital';
@@ -54,6 +54,7 @@ export interface FacturaDto {
 
   creadaEn: string;
   actualizadaEn: string;
+  eliminadaEn: string | null;
 }
 
 export interface ItemFacturaDto {
@@ -174,6 +175,15 @@ export async function corregirCampoFactura(
     body: JSON.stringify({ campo, valorCorregido }),
   });
   return parsearRespuesta<FacturaDetalleDto>(response);
+}
+
+/** Soft-delete (FR-009/FR-029) — nunca usa el verbo HTTP DELETE (contracts/api.md). */
+export async function eliminarFactura(id: string): Promise<FacturaDto> {
+  const response = await fetch(`${API_BASE_URL}/invoices/${id}/delete`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return parsearRespuesta<FacturaDto>(response);
 }
 
 export async function reprocesarFactura(id: string): Promise<FacturaDto> {

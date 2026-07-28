@@ -11,6 +11,7 @@ describe('Máquina de estados de Factura', () => {
     ['procesando', 'extraída'],
     ['procesando', 'necesita_revisión'],
     ['procesando', 'fallida'],
+    ['procesando', 'varias_facturas'],
     ['necesita_revisión', 'extraída'],
     ['fallida', 'procesando'],
   ];
@@ -20,6 +21,7 @@ describe('Máquina de estados de Factura', () => {
     ['recibida', 'necesita_revisión'],
     ['recibida', 'fallida'],
     ['recibida', 'recibida'],
+    ['recibida', 'varias_facturas'],
     ['extraída', 'procesando'],
     ['extraída', 'necesita_revisión'],
     ['extraída', 'fallida'],
@@ -27,6 +29,8 @@ describe('Máquina de estados de Factura', () => {
     ['necesita_revisión', 'fallida'],
     ['fallida', 'extraída'],
     ['fallida', 'necesita_revisión'],
+    ['varias_facturas', 'procesando'],
+    ['varias_facturas', 'varias_facturas'],
   ];
 
   it.each(transicionesValidas)('permite %s -> %s', (desde, hacia) => {

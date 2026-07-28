@@ -168,6 +168,21 @@ export class InvoicesController {
     return this.obtener(id);
   }
 
+  /**
+   * Soft-delete (FR-009/FR-029, constitution Principio I): nunca usa el verbo
+   * HTTP DELETE — es una transición de estado, no una operación destructiva
+   * sobre el recurso (contracts/api.md). Idempotente: eliminar una factura ya
+   * eliminada responde 404 en vez de un segundo efecto.
+   */
+  @Post(':id/delete')
+  async eliminar(@Param('id') id: string): Promise<Factura> {
+    const factura = await this.facturaRepository.eliminar(id);
+    if (!factura) {
+      throw new NotFoundException(`Factura ${id} no encontrada`);
+    }
+    return factura;
+  }
+
   /** Reintenta la extracción para una factura en `fallida` (FR-013). No aplica a otros estados. */
   @Post(':id/reprocess')
   async reprocesar(@Param('id') id: string): Promise<Factura> {

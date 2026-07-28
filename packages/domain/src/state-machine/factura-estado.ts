@@ -5,14 +5,17 @@
  */
 
 export type FacturaEstado =
-  'recibida' | 'procesando' | 'extraída' | 'necesita_revisión' | 'fallida';
+  'recibida' | 'procesando' | 'extraída' | 'necesita_revisión' | 'fallida' | 'varias_facturas';
 
 const TRANSICIONES_PERMITIDAS: Readonly<Record<FacturaEstado, readonly FacturaEstado[]>> = {
   recibida: ['procesando'],
-  procesando: ['extraída', 'necesita_revisión', 'fallida'],
+  procesando: ['extraída', 'necesita_revisión', 'fallida', 'varias_facturas'],
   extraída: [],
   necesita_revisión: ['extraída'],
   fallida: ['procesando'],
+  // Terminal, sin reintento sobre el mismo registro (data-model.md,
+  // specs/002-rediseno-visual-web) — el usuario recaptura fotos nuevas.
+  varias_facturas: [],
 };
 
 export class TransicionEstadoInvalidaError extends Error {

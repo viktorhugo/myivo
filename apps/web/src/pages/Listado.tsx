@@ -10,6 +10,7 @@ import {
   type TipoDocumento,
 } from '../services/invoices';
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO_DOCUMENTO, OPCIONES_TIPO_DOCUMENTO } from '../etiquetas';
+import EstadoVacio from './EstadoVacio';
 import {
   formatearCentavos,
   formatearDiferenciaTiempo,
@@ -133,32 +134,43 @@ export default function Listado({
   const IconoFiltro = obtenerIcono('filtro', tema);
   const IconoCamara = obtenerIcono('camara', tema);
 
+  // "Biblioteca vacía" (US4) es distinto de "0 resultados para el filtro
+  // actual" (spec.md § Assumptions) — solo la primera muestra la pantalla de
+  // bienvenida; la segunda sigue con el mensaje genérico de siempre.
+  const filtrosActivos = Object.keys(construirFiltrosParams(formulario)).length > 0;
+  const bibliotecaVacia = !cargando && !filtrosActivos && conteo === 0;
+
   return (
     <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)' }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 26, flex: 1 }}>
           Mis facturas
         </h1>
-        <button
-          type="button"
-          className={`boton-icono ${busquedaVisible ? 'activo' : ''}`}
-          aria-label="Buscar por comercio"
-          aria-pressed={busquedaVisible}
-          onClick={() => setBusquedaVisible((visible) => !visible)}
-        >
-          <IconoBuscar size={17} />
-        </button>
-        <button
-          type="button"
-          className={`boton-icono ${filtrosVisibles ? 'activo' : ''}`}
-          aria-label="Mostrar filtros"
-          aria-pressed={filtrosVisibles}
-          onClick={() => setFiltrosVisibles((visible) => !visible)}
-        >
-          <IconoFiltro size={17} />
-        </button>
+        {!bibliotecaVacia && (
+          <>
+            <button
+              type="button"
+              className={`boton-icono ${busquedaVisible ? 'activo' : ''}`}
+              aria-label="Buscar por comercio"
+              aria-pressed={busquedaVisible}
+              onClick={() => setBusquedaVisible((visible) => !visible)}
+            >
+              <IconoBuscar size={17} />
+            </button>
+            <button
+              type="button"
+              className={`boton-icono ${filtrosVisibles ? 'activo' : ''}`}
+              aria-label="Mostrar filtros"
+              aria-pressed={filtrosVisibles}
+              onClick={() => setFiltrosVisibles((visible) => !visible)}
+            >
+              <IconoFiltro size={17} />
+            </button>
+          </>
+        )}
       </header>
 
+      {!bibliotecaVacia && (
       <form onSubmit={manejarSubmit}>
         {busquedaVisible && (
           <input
@@ -266,11 +278,14 @@ export default function Listado({
           </button>
         )}
       </form>
+      )}
 
       {error && <p role="alert">{error}</p>}
 
       {cargando ? (
         <p>Cargando…</p>
+      ) : bibliotecaVacia ? (
+        <EstadoVacio tema={tema} onCapturar={onCapturar} />
       ) : (
         <>
           <div className="card" style={{ padding: '14px 16px', margin: '18px 0 6px' }}>
@@ -310,27 +325,29 @@ export default function Listado({
         </>
       )}
 
-      <button
-        type="button"
-        onClick={onCapturar}
-        className="btn-primary"
-        aria-label="Capturar factura"
-        title="Capturar factura"
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          borderRadius: 'var(--radius-fab)',
-          width: 58,
-          height: 58,
-          display: 'grid',
-          placeItems: 'center',
-          boxShadow: '0 3px 10px rgba(0, 0, 0, 0.16)',
-        }}
-      >
-        <MarcasEsquina />
-        <IconoCamara size={24} />
-      </button>
+      {!bibliotecaVacia && (
+        <button
+          type="button"
+          onClick={onCapturar}
+          className="btn-primary"
+          aria-label="Capturar factura"
+          title="Capturar factura"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            borderRadius: 'var(--radius-fab)',
+            width: 58,
+            height: 58,
+            display: 'grid',
+            placeItems: 'center',
+            boxShadow: '0 3px 10px rgba(0, 0, 0, 0.16)',
+          }}
+        >
+          <MarcasEsquina />
+          <IconoCamara size={24} />
+        </button>
+      )}
 
       {duplicadosPendientes[0] && (
         <BottomSheetDuplicado

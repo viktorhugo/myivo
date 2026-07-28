@@ -29,6 +29,7 @@ const ESTADO_A_DOMINIO: Record<FacturaEstadoPrisma, FacturaEstado> = {
   extraida: 'extraída',
   necesita_revision: 'necesita_revisión',
   fallida: 'fallida',
+  varias_facturas: 'varias_facturas',
 };
 
 const ESTADO_A_PRISMA: Record<FacturaEstado, FacturaEstadoPrisma> = {
@@ -37,6 +38,7 @@ const ESTADO_A_PRISMA: Record<FacturaEstado, FacturaEstadoPrisma> = {
   extraída: 'extraida',
   necesita_revisión: 'necesita_revision',
   fallida: 'fallida',
+  varias_facturas: 'varias_facturas',
 };
 
 interface ArchivoDerivadoJson {
@@ -78,6 +80,7 @@ export function aDominio(fila: FacturaPrisma): Factura {
     elegibilidadMotivo: fila.elegibilidadMotivo,
     creadaEn: fila.creadaEn,
     actualizadaEn: fila.actualizadaEn,
+    eliminadaEn: fila.eliminadaEn,
   };
 }
 
@@ -214,9 +217,29 @@ export class FacturaRepository {
     return aDominio(fila);
   }
 
+  /** Excluye por defecto los registros con soft-delete (FR-009) — equivalente a "no encontrado". */
   async obtenerPorId(id: string): Promise<Factura | null> {
-    const fila = await this.prisma.factura.findUnique({ where: { id } });
+    const fila = await this.prisma.factura.findFirst({ where: { id, eliminadaEn: null } });
     return fila ? aDominio(fila) : null;
+  }
+
+  /**
+   * Soft-delete (FR-009/FR-029, constitution Principio I): marca `eliminadaEn`
+   * sin tocar ningún otro campo ni el archivo original. Idempotente por
+   * construcción — `obtenerPorId` ya excluye una factura ya eliminada, así
+   * que reintentar sobre ella devuelve `null` en vez de un segundo efecto.
+   * Devuelve `null` si el id no existe o ya estaba eliminada.
+   */
+  async eliminar(id: string): Promise<Factura | null> {
+    const actual = await this.obtenerPorId(id);
+    if (!actual) {
+      return null;
+    }
+    const fila = await this.prisma.factura.update({
+      where: { id },
+      data: { eliminadaEn: new Date() },
+    });
+    return aDominio(fila);
   }
 
   /**
@@ -256,7 +279,8 @@ export class FacturaRepository {
    * porque no es un agregado monetario.
    */
   async listar(filtros: FiltrosFactura): Promise<ResultadoListado> {
-    const where: Prisma.FacturaWhereInput = {};
+    // Excluidas por defecto (FR-009) — sin flag para incluirlas, esta feature no trae papelera.
+    const where: Prisma.FacturaWhereInput = { eliminadaEn: null };
 
     if (filtros.fechaDesde || filtros.fechaHasta) {
       const filtroFecha: Prisma.DateTimeNullableFilter = {};

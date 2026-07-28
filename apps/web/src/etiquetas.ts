@@ -6,6 +6,7 @@ export const ETIQUETA_ESTADO: Record<FacturaEstado, string> = {
   extraída: 'Extraída',
   necesita_revisión: 'Necesita revisión',
   fallida: 'Fallida',
+  varias_facturas: 'Varias',
 };
 
 export const ETIQUETA_MEDIO_PAGO: Record<MedioPago, string> = {

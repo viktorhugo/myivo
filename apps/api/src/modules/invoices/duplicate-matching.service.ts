@@ -40,6 +40,31 @@ interface CandidatoFuzzy {
   id: string;
 }
 
+/**
+ * Proxy de "cuál factura tiene más datos" para decidir cuál conservar al
+ * confirmar un duplicado (resolver() con resolucion="duplicado"): cuenta
+ * campos extraídos no nulos, más la cantidad de tarifas de IVA registradas.
+ * No usa `confianzaCampos` porque un campo puede estar ausente de ese mapa
+ * sin ser `null` (p. ej. corregido a mano) — contar valores reales es más
+ * fiel a "cuál registro quedaría con más información" que promediar confianza.
+ */
+function contarCamposPoblados(factura: Factura): number {
+  const campos: unknown[] = [
+    factura.comercioNombre,
+    factura.comercioNIT,
+    factura.fechaHoraCompra,
+    factura.subtotalCentavos,
+    factura.impuestoConsumoCentavos,
+    factura.propinaCentavos,
+    factura.totalCentavos,
+    factura.medioPago,
+    factura.adquirienteNombre,
+    factura.adquirienteIdentificacion,
+    factura.cufe,
+  ];
+  return campos.filter((valor) => valor !== null && valor !== undefined).length + factura.ivaPorTarifa.length;
+}
+
 export interface MarcaPendienteConFacturas extends MarcaPosibleDuplicado {
   facturaOriginal: Factura;
   facturaCandidata: Factura;
@@ -159,13 +184,39 @@ export class DuplicateMatchingService {
     }));
   }
 
+  /**
+   * "distinto" solo cambia el estado de la marca (FR-020 Acceptance Scenario
+   * 3: ambas quedan como registros independientes). "duplicado" además hace
+   * soft-delete de una de las dos facturas del par — sin esto, confirmar que
+   * son la misma compra dejaba ambas visibles para siempre, duplicando montos
+   * en los agregados (bug encontrado validando el bottom sheet en navegador
+   * real). Se conserva la que tenga más campos poblados (`contarCamposPoblados`)
+   * — coherente con el copy ya implementado del bottom sheet ("conservamos la
+   * copia con más datos"); en empate se conserva la original como desempate
+   * determinista. El soft-delete reusa el mismo campo `eliminadaEn` de US2
+   * (specs/002-rediseno-visual-web) — nunca purga nada (constitution Principio I).
+   */
   async resolver(marcaId: string, resolucion: 'duplicado' | 'distinto'): Promise<MarcaPosibleDuplicado> {
-    const marca = await this.prisma.marcaPosibleDuplicado.findUnique({ where: { id: marcaId } });
+    const marca = await this.prisma.marcaPosibleDuplicado.findUnique({
+      where: { id: marcaId },
+      include: { facturaOriginal: true, facturaCandidata: true },
+    });
     if (!marca) {
       throw new NotFoundException(`Marca de duplicado ${marcaId} no encontrada`);
     }
     if (marca.estado !== 'pendiente_confirmacion') {
       throw new NotFoundException(`La marca ${marcaId} ya fue resuelta`);
+    }
+
+    if (resolucion === 'duplicado') {
+      const original = aDominio(marca.facturaOriginal);
+      const candidata = aDominio(marca.facturaCandidata);
+      const idAEliminar =
+        contarCamposPoblados(candidata) <= contarCamposPoblados(original) ? candidata.id : original.id;
+      await this.prisma.factura.update({
+        where: { id: idAEliminar },
+        data: { eliminadaEn: new Date() },
+      });
     }
 
     return this.prisma.marcaPosibleDuplicado.update({

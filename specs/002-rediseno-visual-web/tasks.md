@@ -72,11 +72,13 @@ Hallazgos que solo aparecieron al usar la app en un navegador real (ninguno era 
 
 ### Implementación para User Story 2
 
-- [ ] T010 [P] [US2] Migración Prisma: agregar columna `eliminadaEn` (timestamp, nullable) a `Factura` en `apps/api/prisma/schema.prisma`
-- [ ] T011 [P] [US2] Agregar campo `eliminadaEn: Date | null` a la entidad `Factura` en `packages/domain/src/entities/factura.ts`
-- [ ] T012 [US2] Excluir registros con `eliminadaEn` no nulo en `FacturaRepository.obtenerPorId()` y `.listar()` (incluyendo `conteo`/`sumaTotal`) en `apps/api/src/modules/invoices/factura.repository.ts` (depende de T010)
-- [ ] T013 [US2] Endpoint `POST /invoices/:id/delete` en `apps/api/src/modules/invoices/invoices.controller.ts` — marca `eliminadaEn = now()`, `404` si no existe o ya estaba eliminada (idempotente, no usa el verbo HTTP `DELETE` — contracts/api.md) (depende de T012)
-- [ ] T014 [P] [US2] Menú "···" en `apps/web/src/pages/Detalle.tsx` con la acción "Eliminar factura" + confirmación explícita antes de ejecutar
+- [X] T010 [P] [US2] Migración Prisma: agregar columna `eliminadaEn` (timestamp, nullable) a `Factura` en `apps/api/prisma/schema.prisma`
+- [X] T011 [P] [US2] Agregar campo `eliminadaEn: Date | null` a la entidad `Factura` en `packages/domain/src/entities/factura.ts`
+- [X] T012 [US2] Excluir registros con `eliminadaEn` no nulo en `FacturaRepository.obtenerPorId()` y `.listar()` (incluyendo `conteo`/`sumaTotal`) en `apps/api/src/modules/invoices/factura.repository.ts` (depende de T010)
+- [X] T013 [US2] Endpoint `POST /invoices/:id/delete` en `apps/api/src/modules/invoices/invoices.controller.ts` — marca `eliminadaEn = now()`, `404` si no existe o ya estaba eliminada (idempotente, no usa el verbo HTTP `DELETE` — contracts/api.md) (depende de T012)
+- [X] T014 [P] [US2] Menú "···" en `apps/web/src/pages/Detalle.tsx` con la acción "Eliminar factura" + confirmación explícita antes de ejecutar
+
+**Extensión de US2 — fusión real de duplicados confirmados**: validando el bottom sheet de duplicado (US5/US1) se encontró que `DuplicateMatchingService.resolver()` (feature 001) solo cambiaba el estado de la `MarcaPosibleDuplicado` a `duplicado_confirmado` sin actuar nunca sobre las dos facturas — el par quedaba visible para siempre, duplicando montos en los agregados. La spec 001 original nunca definió este comportamiento (su Acceptance Scenario de duplicados solo cubre el caso "son distintas"), pero el copy ya implementado del bottom sheet ("CONSERVAR UNA", "conservamos la copia con más datos") asumía una fusión real. Se resolvió como parte de US2 porque comparte el mismo mecanismo: `resolver()` ahora hace soft-delete (`eliminadaEn = now()`) de una de las dos facturas cuando `resolucion === 'duplicado'`, conservando la que tenga más campos poblados (`contarCamposPoblados` en `duplicate-matching.service.ts`; empate → se conserva la original). Nunca purga nada — misma garantía de recuperabilidad que el resto de T010-T013 (constitution Principio I).
 
 **Checkpoint**: US2 completa y validada — eliminar factura funciona de punta a punta, sin purga automática (Principio I de la constitution).
 
@@ -90,12 +92,12 @@ Hallazgos que solo aparecieron al usar la app en un navegador real (ninguno era 
 
 ### Implementación para User Story 3
 
-- [ ] T015 [P] [US3] Agregar el valor `'varias_facturas'` a `FacturaEstado` + la transición `procesando → varias_facturas` (terminal, sin salientes) en `packages/domain/src/state-machine/factura-estado.ts`, con test unitario en `packages/domain/test/state-machine.spec.ts`
-- [ ] T016 [P] [US3] Migración Prisma: agregar `varias_facturas` al enum `FacturaEstado` en `apps/api/prisma/schema.prisma`
-- [ ] T017 [P] [US3] Agregar campo `múltiplesDocumentos: z.boolean()` a `extractedInvoiceDataSchema` en `packages/domain/src/ports/invoice-extractor.port.ts`, con test unitario en `packages/domain/test/invoice-extractor-port.spec.ts`
-- [ ] T018 [US3] Actualizar el prompt de extracción compartido en `apps/api/src/modules/extraction/extraction-prompt.ts` con la instrucción para que el modelo señale cuando la imagen contiene más de un documento de compra distinto (depende de T017)
-- [ ] T019 [US3] En `ExtractionProcessor.procesar()`, si `múltiplesDocumentos === true`, transicionar la `Factura` a `varias_facturas` sin persistir ningún otro campo extraído, en `apps/api/src/modules/extraction/extraction.processor.ts` (depende de T015, T016, T018)
-- [ ] T020 [P] [US3] Estado visual "varias facturas" (color e ícono propios, acción "Separar y recapturar" inline) en `apps/web/src/pages/Captura.tsx`
+- [X] T015 [P] [US3] Agregar el valor `'varias_facturas'` a `FacturaEstado` + la transición `procesando → varias_facturas` (terminal, sin salientes) en `packages/domain/src/state-machine/factura-estado.ts`, con test unitario en `packages/domain/test/state-machine.spec.ts`
+- [X] T016 [P] [US3] Migración Prisma: agregar `varias_facturas` al enum `FacturaEstado` en `apps/api/prisma/schema.prisma`
+- [X] T017 [P] [US3] Agregar campo `múltiplesDocumentos: z.boolean()` a `extractedInvoiceDataSchema` en `packages/domain/src/ports/invoice-extractor.port.ts`, con test unitario en `packages/domain/test/invoice-extractor-port.spec.ts`
+- [X] T018 [US3] Actualizar el prompt de extracción compartido en `apps/api/src/modules/extraction/extraction-prompt.ts` con la instrucción para que el modelo señale cuando la imagen contiene más de un documento de compra distinto (depende de T017) — subió `VERSION_PROMPT_EXTRACCION` a `v2` (cambio significativo de contrato, no solo redacción)
+- [X] T019 [US3] En `ExtractionProcessor.procesar()`, si `múltiplesDocumentos === true`, transicionar la `Factura` a `varias_facturas` sin persistir ningún otro campo extraído, en `apps/api/src/modules/extraction/extraction.processor.ts` (depende de T015, T016, T018)
+- [X] T020 [P] [US3] Estado visual "varias facturas" (color e ícono propios, acción "Separar y recapturar" inline) en `apps/web/src/pages/Captura.tsx` — usa los tokens `--color-estado-varias`/`--color-estado-varias-bg` ya definidos desde Foundational (T003) y el ícono `capas` ya mapeado desde T001, ambos sin usar hasta esta historia; "Separar y recapturar" reutiliza el mismo input de cámara oculto (sin endpoint nuevo, coherente con data-model.md: el usuario recaptura como fotos nuevas e independientes)
 
 **Checkpoint**: US3 completa y validada — el sistema detecta y marca (best-effort) fotos con varias facturas, sin mezclar datos.
 
@@ -109,8 +111,8 @@ Hallazgos que solo aparecieron al usar la app en un navegador real (ninguno era 
 
 ### Implementación para User Story 4
 
-- [ ] T021 [US4] Crear `apps/web/src/pages/EstadoVacio.tsx` con los tokens del tema activo (ícono, copy, botón primario a Captura, nota secundaria)
-- [ ] T022 [US4] Integrar `EstadoVacio` en `apps/web/src/pages/Listado.tsx` cuando `conteo === 0` (depende de T021)
+- [X] T021 [US4] Crear `apps/web/src/pages/EstadoVacio.tsx` con los tokens del tema activo (ícono, copy, botón primario a Captura, nota secundaria) — comparado contra el mockup exacto "05 · ESTADO VACÍO" del design_handoff; ícono `Receipt`/`ReceiptIcon` nuevo en `theme/iconos.ts`
+- [X] T022 [US4] Integrar `EstadoVacio` en `apps/web/src/pages/Listado.tsx` cuando `conteo === 0` (depende de T021) — con el matiz de que solo aplica sin filtros activos (`bibliotecaVacia`); "0 resultados para el filtro actual" sigue mostrando el mensaje genérico existente, no la pantalla de bienvenida. También oculta buscar/filtro/FAB cuando se muestra el estado vacío, coherente con el mockup (que no los tiene)
 
 **Checkpoint**: US4 completa y validada.
 
@@ -134,9 +136,9 @@ Hallazgos que solo aparecieron al usar la app en un navegador real (ninguno era 
 
 **Purpose**: mejoras que afectan a varias historias, después de que todas están construidas.
 
-- [ ] T024 [P] Actualizar `README.md` con las dependencias nuevas de `apps/web` (paquetes de iconos) y una nota sobre el sistema de temas
-- [ ] T025 Revisar cobertura de tests de dominio (constitution Principio VIII): transición `procesando → varias_facturas`, y el campo nuevo del schema de extracción
-- [ ] T026 Ejecutar la validación completa de `quickstart.md` de esta feature de punta a punta (P1 → P5), incluyendo el paso explícito de no-regresión sobre `specs/001-captura-facturas/quickstart.md`
+- [X] T024 [P] Actualizar `README.md` con las dependencias nuevas de `apps/web` (paquetes de iconos) y una nota sobre el sistema de temas — agregada sección "Temas visuales" (data-theme, tokens.css, localStorage, fuentes auto-hospedadas)
+- [X] T025 Revisar cobertura de tests de dominio (constitution Principio VIII): transición `procesando → varias_facturas` (4 casos en `state-machine.spec.ts`) y el campo `múltiplesDocumentos` (3 casos en `invoice-extractor-port.spec.ts`), ambos agregados durante US3 — 58/58 tests de dominio en verde. `contarCamposPoblados()` (duplicate-matching.service.ts, decide qué factura conservar al fusionar un duplicado) queda sin test unitario dedicado: vive en `apps/api`, no en `packages/domain`, y el criterio pragmático ya establecido en `specs/001-captura-facturas/tasks.md` limita la exigencia de tests unitarios a reglas de dominio — `apps/api` no tiene ningún test unitario en todo el proyecto, ni siquiera para reglas más centrales (elegibilidad, clasificación). No se fuerza aquí por consistencia con ese precedente.
+- [X] T026 Verificación estática completa de punta a punta: `tsc --noEmit` + `eslint` + `jest` en `packages/domain` (build, 58/58 tests, typecheck, lint), `apps/api` (typecheck, lint, sin tests por diseño) y `apps/web` (typecheck, lint completo de `src/`) — todo en verde. La validación funcional real de `quickstart.md` (P1→P5) requiere accionar el navegador y no se ejecutó aquí — queda documentada como pendiente manual del usuario en el reporte de cierre de esta fase.
 
 ---
 

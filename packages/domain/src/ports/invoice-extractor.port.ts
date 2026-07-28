@@ -84,6 +84,13 @@ export const extractedInvoiceDataSchema = z.object({
    * siempre la fuente preferida; esto solo se usa cuando el QR es ilegible.
    */
   cufeImpreso: z.string().nullable(),
+  /**
+   * `true` cuando la imagen contiene más de un documento de compra físico
+   * distinto (FR-028/FR-010, specs/002-rediseno-visual-web) — la Factura
+   * transiciona a `varias_facturas` sin poblar ningún otro campo en vez de
+   * mezclar los datos de ambos documentos en un solo registro.
+   */
+  múltiplesDocumentos: z.boolean(),
   items: z.array(extractedItemSchema),
   /**
    * Un nivel de confianza (0-1) por nombre de campo extraído (FR-009).

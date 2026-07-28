@@ -19,6 +19,7 @@ enum FacturaEstado {
   extraida          @map("extraída")
   necesita_revision @map("necesita_revisión")
   fallida
+  varias_facturas
 }
 
 enum MedioPago {
@@ -44,7 +45,8 @@ enum TipoDocumento {
 }
 
 // Campos de captura (US1) + extracción (US2) + clasificación tributaria
-// (US3). El soft-delete se agrega en User Story 4/5 — ver data-model.md.
+// (US3). El soft-delete (eliminadaEn) se agrega en specs/002-rediseno-visual-web
+// User Story 2 — ver data-model.md de esa feature.
 model Factura {
   id                 String        @id @default(uuid())
   estado             FacturaEstado @default(recibida)
@@ -90,6 +92,9 @@ model Factura {
 
   creadaEn      DateTime @default(now())
   actualizadaEn DateTime @updatedAt
+
+  /// Soft-delete (constitution Principio I / FR-009): ortogonal a `estado`, nunca purgado. No nulo = excluido de toda lectura por defecto.
+  eliminadaEn DateTime?
 
   @@map("facturas")
 }

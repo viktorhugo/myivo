@@ -64,6 +64,14 @@ export class ExtractionProcessor {
         decodificarCufeDesdeQr(imagen),
       ]);
 
+      // FR-028/FR-010 (specs/002-rediseno-visual-web US3): una foto con más de
+      // un documento de compra queda marcada, no mezclada — ningún campo
+      // extraído se persiste, el usuario recaptura cada documento por separado.
+      if (datos.múltiplesDocumentos) {
+        await this.facturaRepository.actualizarEstado(facturaId, 'varias_facturas');
+        return;
+      }
+
       const { cufe, cufeOrigen } = this.resolverCufe(cufePorQr?.cufe ?? null, datos.cufeImpreso);
 
       // Clasificación tributaria (US3, constitution Principio IV): reglas
