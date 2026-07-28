@@ -97,7 +97,7 @@ export class DuplicateMatchingService {
 
     if (factura.cufe) {
       const otraConMismoCufe = await this.prisma.factura.findFirst({
-        where: { id: { not: facturaId }, cufe: factura.cufe },
+        where: { id: { not: facturaId }, cufe: factura.cufe, eliminadaEn: null },
         orderBy: { creadaEn: 'asc' },
       });
       if (otraConMismoCufe && esDuplicadoExactoPorCufe(factura.cufe, otraConMismoCufe.cufe)) {
@@ -121,6 +121,7 @@ export class DuplicateMatchingService {
     const candidatos = await this.prisma.$queryRaw<CandidatoFuzzy[]>`
       SELECT id FROM facturas
       WHERE id != ${facturaId}
+        AND "eliminadaEn" IS NULL
         AND (cufe IS NULL OR "cufeOrigen" = 'ocr_respaldo')
         AND "fechaHoraCompra"::date = ${factura.fechaHoraCompra}::date
         AND "totalCentavos" = ${factura.totalCentavos}
@@ -164,10 +165,19 @@ export class DuplicateMatchingService {
     });
   }
 
-  /** Cada marca pendiente, con las dos facturas candidatas completas (contracts/api.md). */
+  /**
+   * Cada marca pendiente, con las dos facturas candidatas completas
+   * (contracts/api.md). Excluye marcas donde cualquiera de las dos facturas
+   * ya fue eliminada (FR-009) — no tiene sentido preguntar "¿es la misma
+   * compra?" sobre una factura que el usuario ya eliminó por su cuenta.
+   */
   async obtenerPendientes(): Promise<MarcaPendienteConFacturas[]> {
     const filas = await this.prisma.marcaPosibleDuplicado.findMany({
-      where: { estado: 'pendiente_confirmacion' },
+      where: {
+        estado: 'pendiente_confirmacion',
+        facturaOriginal: { eliminadaEn: null },
+        facturaCandidata: { eliminadaEn: null },
+      },
       include: { facturaOriginal: true, facturaCandidata: true },
       orderBy: { creadaEn: 'asc' },
     });

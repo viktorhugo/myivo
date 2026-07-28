@@ -47,12 +47,21 @@ export class ExtractionProcessor {
   /**
    * Nunca lanza — cualquier fallo (red, validación, lo que sea) termina en
    * `fallida` (FR-013); el llamador no necesita su propio try/catch.
+   *
+   * La transición a `procesando` es condicional: si el llamador ya la hizo
+   * (p. ej. `POST /invoices/:id/reprocess`, que transiciona antes de
+   * responder para que el frontend vea el estado intermedio en vez de solo
+   * el resultado final), repetirla lanzaría por ser `procesando -> procesando`,
+   * una transición no definida en la máquina de estados.
    */
   async procesar(facturaId: string): Promise<void> {
-    await this.facturaRepository.actualizarEstado(facturaId, 'procesando');
+    const actual = await this.facturaRepository.obtenerPorId(facturaId);
+    if (actual && actual.estado !== 'procesando') {
+      await this.facturaRepository.actualizarEstado(facturaId, 'procesando');
+    }
 
     try {
-      const factura = await this.facturaRepository.obtenerPorId(facturaId);
+      const factura = actual ?? (await this.facturaRepository.obtenerPorId(facturaId));
       if (!factura) {
         throw new Error(`Factura ${facturaId} no encontrada`);
       }

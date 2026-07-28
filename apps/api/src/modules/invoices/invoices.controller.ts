@@ -183,7 +183,13 @@ export class InvoicesController {
     return factura;
   }
 
-  /** Reintenta la extracción para una factura en `fallida` (FR-013). No aplica a otros estados. */
+  /**
+   * Reintenta la extracción para una factura en `fallida` (FR-013). No aplica
+   * a otros estados. Despacha sin esperar — igual que `subir()` — y transiciona
+   * a `procesando` antes de responder: si esperara el resultado completo, la
+   * respuesta nunca reflejaría el estado intermedio y el frontend jamás vería
+   * "procesando", solo el resultado final.
+   */
   @Post(':id/reprocess')
   async reprocesar(@Param('id') id: string): Promise<Factura> {
     const factura = await this.facturaRepository.obtenerPorId(id);
@@ -196,13 +202,16 @@ export class InvoicesController {
       );
     }
 
-    await this.extractionProcessor.procesar(id);
+    const enProceso = await this.facturaRepository.actualizarEstado(id, 'procesando');
 
-    const actualizada = await this.facturaRepository.obtenerPorId(id);
-    if (!actualizada) {
-      throw new NotFoundException(`Factura ${id} no encontrada`);
-    }
-    return actualizada;
+    this.extractionProcessor.procesar(id).catch((error: unknown) => {
+      this.logger.error(
+        `Reintento de extracción falló para factura ${id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    });
+
+    return enProceso;
   }
 
   /** Marcas de posible duplicado en `pendiente_confirmacion`, cada una con las dos facturas candidatas (FR-020). */

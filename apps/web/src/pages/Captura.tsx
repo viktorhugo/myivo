@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react';
-import { obtenerFactura, subirFacturas, urlImagenFactura, type FacturaDto } from '../services/invoices';
-import { ETIQUETA_ESTADO } from '../etiquetas';
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import {
+  obtenerFactura,
+  reprocesarFactura,
+  subirFacturas,
+  urlImagenFactura,
+  type FacturaDto,
+} from '../services/invoices';
 import { formatearCentavos } from '../format';
 import { obtenerIcono, type NombreIcono } from '../theme/iconos';
 import MarcasEsquina from '../theme/MarcasEsquina';
@@ -8,13 +13,29 @@ import type { TemaResuelto } from '../theme/useTheme';
 
 const ESTADOS_NO_TERMINALES = new Set<FacturaDto['estado']>(['recibida', 'procesando']);
 
-const COLOR_VAR_ESTADO: Record<FacturaDto['estado'], string> = {
-  recibida: 'var(--color-estado-recibida)',
-  procesando: 'var(--color-estado-procesando)',
-  extraída: 'var(--color-estado-extraida-fg)',
-  necesita_revisión: 'var(--color-estado-revision-fg)',
-  fallida: 'var(--color-estado-fallida-fg)',
-  varias_facturas: 'var(--color-estado-varias)',
+/** Nombre de la clase modificadora de `.badge-estado` en tokens.css. */
+const CLASE_BADGE_ESTADO: Record<FacturaDto['estado'], string> = {
+  recibida: 'recibida',
+  procesando: 'procesando',
+  extraída: 'extraida',
+  necesita_revisión: 'revision',
+  fallida: 'fallida',
+  varias_facturas: 'varias',
+};
+
+/**
+ * Texto del badge — una sola palabra, como el diseño ("REVISIÓN", no
+ * "Necesita revisión"). Aparte de `ETIQUETA_ESTADO` (etiquetas.ts), que sí
+ * usa la forma larga en Listado/Detalle donde el badge no comparte fila con
+ * un subtítulo que ya da el contexto completo.
+ */
+const ETIQUETA_BADGE_CAPTURA: Record<FacturaDto['estado'], string> = {
+  recibida: 'Recibida',
+  procesando: 'Procesando',
+  extraída: 'Extraída',
+  necesita_revisión: 'Revisión',
+  fallida: 'Fallida',
+  varias_facturas: 'Varias',
 };
 
 const ICONO_POR_ESTADO: Record<FacturaDto['estado'], NombreIcono> = {
@@ -25,6 +46,29 @@ const ICONO_POR_ESTADO: Record<FacturaDto['estado'], NombreIcono> = {
   fallida: 'error',
   varias_facturas: 'capas',
 };
+
+/**
+ * Color del subtítulo por estado — reusa `--color-estado-*` (la base, no la
+ * "-fg"): en Nocturne ambas ya son idénticas, y en Industry la base es
+ * justo el tono que el diseño usa para el subtítulo (el badge usa uno más
+ * oscuro aparte, vía `.badge-estado`). recibida/procesando/extraída no
+ * tienen entrada — usan el gris muted por defecto, igual que el diseño.
+ */
+const COLOR_SUBTITULO_ESTADO: Partial<Record<FacturaDto['estado'], string>> = {
+  necesita_revisión: 'var(--color-estado-revision)',
+  fallida: 'var(--color-estado-fallida)',
+  varias_facturas: 'var(--color-estado-varias)',
+};
+
+function bordeMiniatura(estado: FacturaDto['estado'], tema: TemaResuelto): string {
+  if (estado === 'fallida') {
+    return tema === 'nocturne' ? '1px solid rgba(224, 138, 128, 0.5)' : '1px solid var(--color-estado-fallida-fg)';
+  }
+  if (estado === 'varias_facturas') {
+    return tema === 'nocturne' ? '1px solid rgba(213, 155, 207, 0.5)' : '1px solid #8a5a86';
+  }
+  return '1px solid var(--color-border)';
+}
 
 export default function Captura({
   tema,
@@ -73,10 +117,23 @@ export default function Captura({
     event.target.value = '';
   }
 
+  /** Reintento inline (FR-013) — feedback inmediato en vez de esperar al próximo tick del polling. */
+  async function manejarReintentar(facturaId: string) {
+    try {
+      const actualizada = await reprocesarFactura(facturaId);
+      setFacturas((actuales) => actuales.map((f) => (f.id === facturaId ? actualizada : f)));
+    } catch {
+      // El polling de 2s ya en curso refleja el estado real si esto falla silenciosamente.
+    }
+  }
+
   const IconoVolver = obtenerIcono('volver', tema);
   const IconoCamara = obtenerIcono('camara', tema);
   const IconoGaleria = obtenerIcono('galeria', tema);
   const grosorTrazo = tema === 'nocturne' ? 1.7 : 1.5;
+
+  const listas = facturas.filter((f) => f.estado === 'extraída' || f.estado === 'necesita_revisión').length;
+  const enProceso = facturas.filter((f) => f.estado === 'procesando').length;
 
   return (
     <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)' }}>
@@ -128,9 +185,14 @@ export default function Captura({
       </div>
 
       {facturas.length > 0 && (
-        <p className="kicker" style={{ color: 'var(--color-text-muted-2)', padding: '12px 0 4px' }}>
-          Lote de hoy — {facturas.length} foto{facturas.length === 1 ? '' : 's'}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '20px 0 6px' }}>
+          <p className="kicker" style={{ margin: 0, color: 'var(--color-text-muted-2)' }}>
+            Lote de hoy — {facturas.length} foto{facturas.length === 1 ? '' : 's'}
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>
+            {listas} lista{listas === 1 ? '' : 's'} · {enProceso} en proceso
+          </p>
+        </div>
       )}
 
       {error && (
@@ -147,6 +209,7 @@ export default function Captura({
             tema={tema}
             onAbrir={() => onSeleccionar(factura.id)}
             onRecapturar={() => inputCamaraRef.current?.click()}
+            onReintentar={() => manejarReintentar(factura.id)}
           />
         ))}
       </ul>
@@ -158,16 +221,36 @@ export default function Captura({
   );
 }
 
+/** Subtítulo específico por estado (no solo repetir la etiqueta del badge). */
+function subtituloFila(factura: FacturaDto): ReactNode {
+  switch (factura.estado) {
+    case 'recibida':
+      return 'En fila para procesar';
+    case 'procesando':
+      return 'Leyendo los campos…';
+    case 'extraída': {
+      const campos = Object.keys(factura.confianzaCampos).length;
+      return `${formatearCentavos(factura.totalCentavos, factura.moneda)} · ${campos} campo${campos === 1 ? '' : 's'} leído${campos === 1 ? '' : 's'}`;
+    }
+    case 'necesita_revisión':
+      return 'Revisa los campos con baja confianza';
+    default:
+      return null;
+  }
+}
+
 function FilaCaptura({
   factura,
   tema,
   onAbrir,
   onRecapturar,
+  onReintentar,
 }: {
   factura: FacturaDto;
   tema: TemaResuelto;
   onAbrir: () => void;
   onRecapturar: () => void;
+  onReintentar: () => void;
 }) {
   const IconoEstado = obtenerIcono(ICONO_POR_ESTADO[factura.estado], tema);
 
@@ -175,42 +258,51 @@ function FilaCaptura({
     <img
       src={urlImagenFactura(factura.id)}
       alt=""
-      style={{ width: 48, height: 62, objectFit: 'cover', border: '1px solid var(--color-border)', flex: 'none' }}
+      style={{
+        width: 48,
+        height: 62,
+        objectFit: 'cover',
+        border: bordeMiniatura(factura.estado, tema),
+        flex: 'none',
+      }}
     />
   );
 
   const badgeEstado = (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        fontSize: 11,
-        fontWeight: 600,
-        color: COLOR_VAR_ESTADO[factura.estado],
-        flex: 'none',
-      }}
-    >
+    <span className={`badge-estado ${CLASE_BADGE_ESTADO[factura.estado]}`}>
       <IconoEstado size={14} />
-      {ETIQUETA_ESTADO[factura.estado]}
+      {ETIQUETA_BADGE_CAPTURA[factura.estado]}
     </span>
   );
 
-  // Estado terminal sin datos que ver (data-model.md): no tiene sentido abrir
-  // un detalle vacío, así que la fila no es un botón — solo "Separar y
-  // recapturar" es interactivo, para no anidar controles (FR-028/US3).
-  if (factura.estado === 'varias_facturas') {
+  const colorSubtitulo = COLOR_SUBTITULO_ESTADO[factura.estado] ?? 'var(--color-text-muted)';
+  // Tamaños exactos del diseño (Industry 14px/12px, Nocturne 13px/11.5px) — sin
+  // esto el nombre hereda el tamaño por defecto del navegador (16px), notablemente
+  // más grande que cualquiera de los dos.
+  const tamañoNombre = tema === 'nocturne' ? 13 : 14;
+  const tamañoSubtitulo = tema === 'nocturne' ? 11.5 : 12;
+
+  // varias_facturas/fallida son estados con una acción inline (recapturar /
+  // reintentar) — la fila no puede ser un <button> completo en esos casos
+  // porque anidaría un control interactivo dentro de otro (accesibilidad
+  // inválida); solo el enlace de acción es clicable, igual que en el diseño.
+  if (factura.estado === 'varias_facturas' || factura.estado === 'fallida') {
     return (
       <li className="fila-listado" style={{ ...botonFila, cursor: 'default' }}>
         {miniatura}
         <span style={{ flex: 1, textAlign: 'left' }}>
-          <span style={{ display: 'block', fontWeight: 500 }}>
+          <span style={{ display: 'block', fontSize: tamañoNombre, fontWeight: 500 }}>
             {factura.comercioNombre ?? factura.id.slice(0, 8)}
           </span>
-          <span style={{ display: 'block', fontSize: 12, color: 'var(--color-estado-varias)' }}>
-            Vimos varias facturas en esta foto ·{' '}
-            <button type="button" onClick={onRecapturar} style={botonEnlaceInline}>
-              Separar y recapturar
+          <span style={{ display: 'block', fontSize: tamañoSubtitulo, color: colorSubtitulo }}>
+            {factura.estado === 'varias_facturas' ? 'Vimos varias facturas en esta foto' : 'No pudimos leer esta factura'}
+            {' · '}
+            <button
+              type="button"
+              onClick={factura.estado === 'varias_facturas' ? onRecapturar : onReintentar}
+              style={botonEnlaceInline}
+            >
+              {factura.estado === 'varias_facturas' ? 'Separar y recapturar' : 'Reintentar'}
             </button>
           </span>
         </span>
@@ -224,13 +316,11 @@ function FilaCaptura({
       <button type="button" onClick={onAbrir} style={{ ...botonFila }}>
         {miniatura}
         <span style={{ flex: 1, textAlign: 'left' }}>
-          <span style={{ display: 'block', fontWeight: 500 }}>
+          <span style={{ display: 'block', fontSize: tamañoNombre, fontWeight: 500 }}>
             {factura.comercioNombre ?? factura.id.slice(0, 8)}
           </span>
-          <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
-            {factura.totalCentavos !== null
-              ? formatearCentavos(factura.totalCentavos, factura.moneda)
-              : ETIQUETA_ESTADO[factura.estado]}
+          <span style={{ display: 'block', fontSize: tamañoSubtitulo, color: colorSubtitulo }}>
+            {subtituloFila(factura)}
           </span>
         </span>
         {badgeEstado}

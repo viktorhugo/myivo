@@ -622,3 +622,55 @@ body {
   font-size: 12px;
   color: var(--color-text-muted-2);
 }
+
+/*
+ * Badge de estado (Captura — lote de hoy): pill con fondo tintado en
+ * Industry; en Nocturne nunca hay relleno sólido, solo outline (mismo
+ * patrón ya usado en el resto de la app). Colores literales del diseño de
+ * referencia — no siempre coinciden con --color-estado-* (esas variables ya
+ * las usan Detalle/Listado con otro propósito semántico, así que este badge
+ * define los suyos en vez de arriesgar desalinear esos otros usos).
+ */
+.badge-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  /* Industry: texto en versalitas ("REVISIÓN"), igual que .titulo-pantalla —
+     Nocturne lo deja en caja normal ("Revisión"), sin duplicar los strings
+     de ETIQUETA_BADGE_CAPTURA por tema. */
+  text-transform: var(--titulo-transform);
+  padding: 4px 9px;
+}
+[data-theme='nocturne'] .badge-estado {
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 3px 9px;
+}
+
+.badge-estado.recibida { color: #5d5d60; }
+[data-theme='industry'] .badge-estado.recibida { background: rgba(29, 31, 32, 0.07); }
+[data-theme='nocturne'] .badge-estado.recibida { color: #9397ab; border: 1px solid rgba(147, 151, 171, 0.4); }
+
+.badge-estado.procesando { color: var(--color-accent-fg-tint); }
+[data-theme='industry'] .badge-estado.procesando { background: var(--color-accent-bg-tint); }
+[data-theme='nocturne'] .badge-estado.procesando { color: var(--color-accent-fg); border: 1px solid rgba(145, 132, 217, 0.45); }
+
+.badge-estado.extraida { color: #31543f; }
+[data-theme='industry'] .badge-estado.extraida { background: rgba(77, 124, 91, 0.13); }
+[data-theme='nocturne'] .badge-estado.extraida { color: #7cc79a; border: 1px solid rgba(124, 199, 154, 0.4); }
+
+.badge-estado.revision { color: #6f5220; }
+[data-theme='industry'] .badge-estado.revision { background: rgba(163, 116, 44, 0.15); }
+[data-theme='nocturne'] .badge-estado.revision { color: #d8a95f; border: 1px solid rgba(216, 169, 95, 0.4); }
+
+.badge-estado.fallida { color: #82372f; }
+[data-theme='industry'] .badge-estado.fallida { background: rgba(165, 71, 61, 0.13); }
+[data-theme='nocturne'] .badge-estado.fallida { color: #e08a80; border: 1px solid rgba(224, 138, 128, 0.4); }
+
+.badge-estado.varias { color: #6b3f66; }
+[data-theme='industry'] .badge-estado.varias { background: rgba(138, 90, 134, 0.13); }
+[data-theme='nocturne'] .badge-estado.varias { color: #d59bcf; border: 1px solid rgba(213, 155, 207, 0.4); }
