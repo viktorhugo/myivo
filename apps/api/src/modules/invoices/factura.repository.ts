@@ -259,6 +259,21 @@ export class FacturaRepository {
   }
 
   /**
+   * Año de la factura no eliminada más antigua (por `fechaHoraCompra`) — para
+   * poblar el selector de año del reporte anual (specs/004-reporte-anual-renta
+   * research.md § 4). `null` si no hay ninguna factura con fecha extraída
+   * todavía. No incluye el año más reciente: el tope superior del selector es
+   * siempre el año en curso, que el frontend ya calcula localmente.
+   */
+  async obtenerAnioMasAntiguo(): Promise<number | null> {
+    const agregado = await this.prisma.factura.aggregate({
+      where: { eliminadaEn: null },
+      _min: { fechaHoraCompra: true },
+    });
+    return agregado._min.fechaHoraCompra?.getFullYear() ?? null;
+  }
+
+  /**
    * Soft-delete (FR-009/FR-029, constitution Principio I): marca `eliminadaEn`
    * sin tocar ningún otro campo ni el archivo original. Idempotente por
    * construcción — `obtenerPorId` ya excluye una factura ya eliminada, así
@@ -334,6 +349,9 @@ export class FacturaRepository {
     }
     if (filtros.tipoDocumento) {
       where.tipoDocumento = filtros.tipoDocumento;
+    }
+    if (filtros.moneda) {
+      where.moneda = filtros.moneda;
     }
     if (filtros.elegibilidad !== undefined) {
       where.elegibilidadTributaria = filtros.elegibilidad;

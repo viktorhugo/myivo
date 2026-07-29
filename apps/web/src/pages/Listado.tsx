@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   listarFacturas,
   obtenerDuplicadosPendientes,
@@ -29,7 +29,7 @@ import type { TemaResuelto } from '../theme/useTheme';
 
 const OPCIONES_ESTADO = Object.keys(ETIQUETA_ESTADO) as (keyof typeof ETIQUETA_ESTADO)[];
 
-interface FormularioFiltros {
+export interface FormularioFiltros {
   fechaDesde: string;
   fechaHasta: string;
   comercio: string;
@@ -38,7 +38,12 @@ interface FormularioFiltros {
   tipoDocumento: string;
   elegibilidad: string;
   estado: string;
+  /** Sin control visible en el formulario — solo se llena vía `filtrosIniciales` (enlace del reporte anual, FR-005). */
+  moneda: string;
 }
+
+/** Semilla de filtros para llegar ya filtrado (p. ej. desde el reporte anual, specs/004-reporte-anual-renta FR-005). */
+export type FiltrosListadoIniciales = Partial<FormularioFiltros>;
 
 const FILTROS_VACIOS: FormularioFiltros = {
   fechaDesde: '',
@@ -49,6 +54,7 @@ const FILTROS_VACIOS: FormularioFiltros = {
   tipoDocumento: '',
   elegibilidad: '',
   estado: '',
+  moneda: '',
 };
 
 function construirFiltrosParams(formulario: FormularioFiltros): FiltrosFacturaParams {
@@ -63,6 +69,7 @@ function construirFiltrosParams(formulario: FormularioFiltros): FiltrosFacturaPa
   }
   if (formulario.elegibilidad) filtros.elegibilidad = formulario.elegibilidad === 'true';
   if (formulario.estado) filtros.estado = formulario.estado as FacturaEstado;
+  if (formulario.moneda) filtros.moneda = formulario.moneda;
   return filtros;
 }
 
@@ -83,20 +90,30 @@ export default function Listado({
   onAbrirFactura,
   onCapturar,
   onConciliarDian,
+  onAbrirReporte,
+  filtrosIniciales,
 }: {
   tema: TemaResuelto;
   onAbrirFactura: (facturaId: string) => void;
   onCapturar: () => void;
   onConciliarDian: () => void;
+  onAbrirReporte: () => void;
+  /** Llega ya filtrado (p. ej. desde el reporte anual, FR-005) en vez de partir de `FILTROS_VACIOS`. */
+  filtrosIniciales?: FiltrosListadoIniciales | undefined;
 }) {
-  const [formulario, setFormulario] = useState<FormularioFiltros>(FILTROS_VACIOS);
+  const [formulario, setFormulario] = useState<FormularioFiltros>(() => ({
+    ...FILTROS_VACIOS,
+    ...filtrosIniciales,
+  }));
   const [items, setItems] = useState<FacturaDto[]>([]);
   const [conteo, setConteo] = useState(0);
   const [sumaTotal, setSumaTotal] = useState(0);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [duplicadosPendientes, setDuplicadosPendientes] = useState<MarcaPendienteDto[]>([]);
-  const [filtrosVisibles, setFiltrosVisibles] = useState(false);
+  // Con filtros semilla (desde el reporte anual) arrancan visibles, para que
+  // quede claro por qué el listado ya no muestra todo (FR-005).
+  const [filtrosVisibles, setFiltrosVisibles] = useState(filtrosIniciales !== undefined);
   const [busquedaVisible, setBusquedaVisible] = useState(false);
 
   async function cargarDuplicadosPendientes() {
@@ -107,46 +124,75 @@ export default function Listado({
     }
   }
 
-  async function buscar(filtros: FormularioFiltros) {
+  async function buscar(filtros: FormularioFiltros, signal?: AbortSignal) {
     setCargando(true);
     setError(null);
     try {
-      const resultado = await listarFacturas(construirFiltrosParams(filtros));
+      // La tarjeta y la lista comparten la misma consulta: la tarjeta ya no
+      // fuerza ningún criterio de elegibilidad propio, solo refleja los
+      // filtros activos tal cual (incluida la elegibilidad, si el usuario
+      // eligió una) — sin filtro de elegibilidad, suma TODO en COP.
+      const resultado = await listarFacturas(construirFiltrosParams(filtros), signal);
       setItems(resultado.items);
       setConteo(resultado.conteo);
       setSumaTotal(resultado.sumaTotal);
     } catch (err) {
+      // Una búsqueda cancelada porque el filtro volvió a cambiar no es un
+      // error real — la búsqueda más reciente ya está en camino.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'No se pudieron cargar las facturas');
     } finally {
       setCargando(false);
     }
   }
 
+  const esPrimeraCarga = useRef(true);
+
+  // Auto-aplica en cada cambio de filtro, sin botón "Aplicar" — con debounce
+  // para no disparar una búsqueda por cada tecla, y cancelando la búsqueda
+  // anterior si el usuario vuelve a cambiar el filtro antes de que responda
+  // (evita que una respuesta vieja y lenta sobrescriba una más reciente).
   useEffect(() => {
-    buscar(FILTROS_VACIOS);
+    const demoraMs = esPrimeraCarga.current ? 0 : 400;
+    esPrimeraCarga.current = false;
+    const controlador = new AbortController();
+    const idTimeout = setTimeout(() => {
+      buscar(formulario, controlador.signal);
+    }, demoraMs);
+    return () => {
+      clearTimeout(idTimeout);
+      controlador.abort();
+    };
+  }, [formulario]);
+
+  useEffect(() => {
     cargarDuplicadosPendientes();
   }, []);
 
-  function manejarSubmit(event: FormEvent) {
-    event.preventDefault();
-    buscar(formulario);
-  }
-
   function limpiarFiltros() {
     setFormulario(FILTROS_VACIOS);
-    buscar(FILTROS_VACIOS);
   }
 
   const IconoBuscar = obtenerIcono('buscar', tema);
   const IconoFiltro = obtenerIcono('filtro', tema);
   const IconoCamara = obtenerIcono('camara', tema);
   const IconoConciliarDian = obtenerIcono('factura', tema);
+  const IconoReporte = obtenerIcono('reporte', tema);
 
   // "Biblioteca vacía" (US4) es distinto de "0 resultados para el filtro
   // actual" (spec.md § Assumptions) — solo la primera muestra la pantalla de
   // bienvenida; la segunda sigue con el mensaje genérico de siempre.
   const filtrosActivos = Object.keys(construirFiltrosParams(formulario)).length > 0;
   const bibliotecaVacia = !cargando && !filtrosActivos && conteo === 0;
+  // Título de la tarjeta: sin elegir elegibilidad, suma todo (elegibles + no
+  // elegibles) — "Total facturas" en vez de "Compras elegibles", para no
+  // prometer un filtro que no está aplicado.
+  const tituloTarjeta =
+    formulario.elegibilidad === 'true'
+      ? 'Compras elegibles'
+      : formulario.elegibilidad === 'false'
+        ? 'Compras no elegibles'
+        : 'Total facturas';
 
   return (
     <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)' }}>
@@ -183,12 +229,21 @@ export default function Listado({
             >
               <IconoConciliarDian size={17} />
             </button>
+            <button
+              type="button"
+              className="boton-icono"
+              aria-label="Reporte anual"
+              title="Reporte anual"
+              onClick={onAbrirReporte}
+            >
+              <IconoReporte size={17} />
+            </button>
           </>
         )}
       </header>
 
       {!bibliotecaVacia && (
-      <form onSubmit={manejarSubmit}>
+      <form onSubmit={(e) => e.preventDefault()}>
         {busquedaVisible && (
           <input
             type="search"
@@ -288,27 +343,21 @@ export default function Listado({
             </button>
           </div>
         )}
-
-        {(busquedaVisible || filtrosVisibles) && (
-          <button type="submit" className="btn-primary" style={{ padding: '6px 12px', fontSize: 12, marginTop: 6 }}>
-            Aplicar
-          </button>
-        )}
       </form>
       )}
 
       {error && <p role="alert">{error}</p>}
 
-      {cargando ? (
+      {cargando && items.length === 0 ? (
         <p>Cargando…</p>
       ) : bibliotecaVacia ? (
         <EstadoVacio tema={tema} onCapturar={onCapturar} />
       ) : (
         <>
-          <div className="card" style={{ padding: '14px 16px', margin: '18px 0 6px' }}>
+          <div className="card" style={{ padding: '14px 16px', margin: '18px 0 6px', opacity: cargando ? 0.6 : 1 }}>
             <MarcasEsquina />
             <p className="kicker" style={{ color: 'var(--color-accent-fg-tint)' }}>
-              Compras elegibles · {new Date().getFullYear()}
+              {tituloTarjeta} · {new Date().getFullYear()}
             </p>
             <p className="heading" style={{ margin: '4px 0 0', fontSize: 42, lineHeight: 1.05 }}>
               {formatearCentavos(sumaTotal, 'COP')}

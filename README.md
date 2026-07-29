@@ -1,10 +1,10 @@
 # MyIvo
 
-Sistema personal de captura y registro estructurado de facturas físicas (declaración de renta, Colombia). Fotografías o subes una factura, el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío), y `specs/003-validacion-dian/spec.md` para la validación asistida de CUFEs contra la DIAN.
+Sistema personal de captura y registro estructurado de facturas físicas (declaración de renta, Colombia). Fotografías o subes una factura, el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío), `specs/003-validacion-dian/spec.md` para la validación asistida de CUFEs contra la DIAN, y `specs/004-reporte-anual-renta/spec.md` para el reporte anual de compras elegibles y su exportación.
 
 ## Stack
 
-- **Backend**: NestJS + Prisma sobre PostgreSQL (`apps/api`) — `exceljs` para parsear el Excel de conciliación con la DIAN
+- **Backend**: NestJS + Prisma sobre PostgreSQL (`apps/api`) — `exceljs` para parsear el Excel de conciliación con la DIAN y para generar el `.xlsx` del reporte anual; `pdfmake` para generar el `.pdf` del reporte anual (fuente estándar `Helvetica`, sin embeber archivos `.ttf`)
 - **Frontend**: Vite + React (`apps/web`) — dos temas visuales conmutables (Industry/Nocturne, ver abajo), `lucide-react` + `@phosphor-icons/react` para iconografía, fuentes auto-hospedadas vía `@fontsource/barlow`, `@fontsource/barlow-condensed` y `@fontsource/inter` (nunca CDN externo — constitution Principio VII)
 - **Dominio**: TypeScript puro sin dependencias de framework (`packages/domain`) — reglas tributarias, cuadre monetario, máquina de estados
 - **Monorepo**: pnpm + Turborepo
@@ -27,6 +27,18 @@ El sistema nunca consulta el portal de la DIAN de forma automática (constitutio
 - **En lote**: el usuario aporta el Excel de documentos recibidos que él mismo descargó del portal "Facturando Electrónicamente" de la DIAN, y el sistema marca como conciliadas las facturas ya capturadas cuyo CUFE aparezca ahí.
 
 Ver `specs/003-validacion-dian/research.md` para el detalle de estas decisiones, incluyendo una limitación conocida: el esquema exacto de columnas del Excel de conciliación no se validó contra un archivo real de la DIAN.
+
+## Reporte anual
+
+Responde "¿cuánto llevo este año en compras elegibles para la deducción del 1%?" sin cálculo manual: total en COP, conteo, y desglose mes a mes (siempre los 12 meses, incluidos los de $0) del año elegido — año en curso por defecto, cualquier año anterior con datos disponible en el selector.
+
+- El resumen (total/conteo/desglose) es siempre **COP-only** — una factura elegible en otra moneda queda fuera del total, igual que en el Listado (FR-027 de la feature 001), consistente con constitution Principio II.
+- Desde el reporte se puede abrir el Listado ya filtrado a las mismas facturas que componen el total (mismo año, elegibles, COP), sin reconstruir el filtro a mano.
+- El estado de validación DIAN de cada factura (feature 003) es visible como contexto — nunca decide si una factura entra o no al reporte.
+- **Exportación** (Excel o PDF, el usuario elige el formato en cada descarga): incluye el resumen agregado más una fila por cada factura elegible del año — a diferencia del resumen, las filas exportadas incluyen **cualquier moneda** (con su columna de moneda visible), para que el archivo sirva como soporte completo ante un contador.
+- Toda presentación del reporte (pantalla o exportado) incluye siempre la nota de constitution Principio IV: es información organizada por el sistema, no un concepto tributario.
+
+Ver `specs/004-reporte-anual-renta/research.md` para el detalle de estas decisiones (elección de `pdfmake`, por qué el desglose mensual se agrupa en memoria en vez de en SQL, y por qué el reporte y la exportación difieren en su tratamiento de moneda).
 
 ## Requisitos
 

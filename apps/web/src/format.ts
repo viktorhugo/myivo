@@ -94,3 +94,8 @@ export function formatearMesDeGrupo(iso: string | null): string {
   const anio = fecha.getFullYear();
   return anio === new Date().getFullYear() ? mes : `${mes} ${anio}`;
 }
+
+/** Nombre del mes (1-12) para el desglose del reporte anual — sin depender de una fecha concreta. */
+export function formatearNombreMes(mes: number): string {
+  return new Date(2000, mes - 1, 1).toLocaleDateString('es-CO', { month: 'long' });
+}

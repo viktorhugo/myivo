@@ -128,6 +128,8 @@ export interface FiltrosFacturaParams {
   tipoDocumento?: TipoDocumento;
   elegibilidad?: boolean;
   estado?: FacturaEstado;
+  /** Filtro exacto (p. ej. "COP") — usado por el reporte anual para reconciliar el Listado con su propio total COP-only. */
+  moneda?: string;
 }
 
 export interface ResultadoListadoDto {
@@ -137,7 +139,16 @@ export interface ResultadoListadoDto {
   sumaTotal: number;
 }
 
-export async function listarFacturas(filtros: FiltrosFacturaParams): Promise<ResultadoListadoDto> {
+/**
+ * `signal` opcional: permite cancelar una búsqueda anterior que quedó en
+ * vuelo cuando el usuario cambia el filtro de nuevo antes de que responda
+ * (Listado.tsx auto-aplica en cada cambio) — evita que una respuesta vieja
+ * y lenta sobrescriba el resultado de un filtro más reciente.
+ */
+export async function listarFacturas(
+  filtros: FiltrosFacturaParams,
+  signal?: AbortSignal,
+): Promise<ResultadoListadoDto> {
   const params = new URLSearchParams();
   if (filtros.fechaDesde) params.set('fechaDesde', filtros.fechaDesde);
   if (filtros.fechaHasta) params.set('fechaHasta', filtros.fechaHasta);
@@ -151,9 +162,11 @@ export async function listarFacturas(filtros: FiltrosFacturaParams): Promise<Res
   if (filtros.tipoDocumento) params.set('tipoDocumento', filtros.tipoDocumento);
   if (filtros.elegibilidad !== undefined) params.set('elegibilidad', String(filtros.elegibilidad));
   if (filtros.estado) params.set('estado', filtros.estado);
+  if (filtros.moneda) params.set('moneda', filtros.moneda);
 
   const response = await fetch(`${API_BASE_URL}/invoices?${params.toString()}`, {
     credentials: 'include',
+    signal: signal ?? null,
   });
   return parsearRespuesta<ResultadoListadoDto>(response);
 }

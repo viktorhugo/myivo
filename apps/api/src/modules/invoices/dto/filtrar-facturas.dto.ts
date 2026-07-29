@@ -22,6 +22,8 @@ export const filtrarFacturasSchema = z.object({
   montoMin: z.coerce.number().int().optional(),
   montoMax: z.coerce.number().int().optional(),
   tipoDocumento: tipoDocumentoSchema.optional(),
+  /** Filtro exacto de moneda (p. ej. "COP") — usado por el reporte anual para reconciliar el Listado con su propio total COP-only (specs/004-reporte-anual-renta/data-model.md). Omitirlo preserva el comportamiento actual (todas las monedas). */
+  moneda: z.string().min(1).optional(),
   elegibilidad: z
     .enum(['true', 'false'])
     .transform((valor) => valor === 'true')

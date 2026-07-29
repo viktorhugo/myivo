@@ -10,3 +10,4 @@ export * from './tax-rules/clasificacion-documento';
 export * from './tax-rules/elegibilidad';
 export * from './duplicates/duplicado-exacto';
 export * from './rules/conciliacion-dian';
+export * from './rules/reporte-anual';

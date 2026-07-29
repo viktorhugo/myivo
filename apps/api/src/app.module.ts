@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { ExtractionModule } from './modules/extraction/extraction.module';
 import { ValidacionDianModule } from './modules/validacion-dian/validacion-dian.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ValidacionDianModule } from './modules/validacion-dian/validacion-dian.
     InvoicesModule,
     ExtractionModule,
     ValidacionDianModule,
+    ReportesModule,
   ],
   controllers: [AppController],
 })

@@ -2,17 +2,19 @@ import { useEffect, useState } from 'react';
 import Captura from './pages/Captura';
 import ConciliacionDian from './pages/ConciliacionDian';
 import Detalle from './pages/Detalle';
-import Listado from './pages/Listado';
+import Listado, { type FiltrosListadoIniciales } from './pages/Listado';
+import ReporteAnual from './pages/ReporteAnual';
 import Login from './pages/Login';
 import SelectorTema from './theme/SelectorTema';
 import { useTheme } from './theme/useTheme';
 import { cerrarSesion, haySesionActiva } from './services/auth';
 
 type Vista =
-  | { tipo: 'listado' }
+  | { tipo: 'listado'; filtrosIniciales?: FiltrosListadoIniciales }
   | { tipo: 'captura' }
   | { tipo: 'detalle'; facturaId: string }
-  | { tipo: 'conciliacion-dian' };
+  | { tipo: 'conciliacion-dian' }
+  | { tipo: 'reporte-anual' };
 
 export default function App() {
   const [vista, setVista] = useState<Vista>({ tipo: 'listado' });
@@ -86,13 +88,22 @@ export default function App() {
       {vista.tipo === 'listado' && (
         <Listado
           tema={temaResuelto}
+          filtrosIniciales={vista.filtrosIniciales}
           onAbrirFactura={(facturaId) => setVista({ tipo: 'detalle', facturaId })}
           onCapturar={() => setVista({ tipo: 'captura' })}
           onConciliarDian={() => setVista({ tipo: 'conciliacion-dian' })}
+          onAbrirReporte={() => setVista({ tipo: 'reporte-anual' })}
         />
       )}
       {vista.tipo === 'conciliacion-dian' && (
         <ConciliacionDian tema={temaResuelto} onVolver={() => setVista({ tipo: 'listado' })} />
+      )}
+      {vista.tipo === 'reporte-anual' && (
+        <ReporteAnual
+          tema={temaResuelto}
+          onVolver={() => setVista({ tipo: 'listado' })}
+          onAbrirListado={(filtrosIniciales) => setVista({ tipo: 'listado', filtrosIniciales })}
+        />
       )}
     </main>
   );
