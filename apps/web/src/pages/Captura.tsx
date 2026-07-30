@@ -171,7 +171,7 @@ export default function Captura({
           <MarcasEsquina />
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             onChange={manejarSeleccion}
             disabled={subiendo}

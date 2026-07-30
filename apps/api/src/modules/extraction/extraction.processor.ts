@@ -17,6 +17,7 @@ import { FileStorageService } from '../invoices/file-storage.service';
 import { decodificarCufeDesdeQr } from './cufe-decoder';
 import { VERSION_PROMPT_EXTRACCION } from './extraction-prompt';
 import { INVOICE_EXTRACTOR } from './invoice-extractor.token';
+import { esPdf, renderizarPrimeraPagina } from './pdf-decoder';
 
 /**
  * Orquestador de extracción (T031): toma una Factura en `recibida` (o
@@ -66,7 +67,12 @@ export class ExtractionProcessor {
         throw new Error(`Factura ${facturaId} no encontrada`);
       }
 
-      const imagen = await this.fileStorage.leer(factura.rutaImagenOriginal);
+      const original = await this.fileStorage.leer(factura.rutaImagenOriginal);
+      // Un PDF no lo decodifica sharp ni jsQR directamente — se renderiza su
+      // primera página a PNG primero (specs/005-captura-pdf-facturas), y ese
+      // PNG sigue exactamente el mismo camino que ya existía para una foto.
+      // Ningún adaptador de InvoiceExtractor ni cufe-decoder.ts cambian.
+      const imagen = esPdf(original) ? await renderizarPrimeraPagina(original) : original;
 
       const [datos, cufePorQr] = await Promise.all([
         this.extraerYValidar(imagen),

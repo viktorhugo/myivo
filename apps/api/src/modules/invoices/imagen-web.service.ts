@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ArchivoDerivado } from '@myivo/domain';
 import { decodificarImagen } from '../extraction/image-decoder';
+import { esPdf, renderizarPrimeraPagina } from '../extraction/pdf-decoder';
 import { FacturaRepository } from './factura.repository';
 import { FileStorageService } from './file-storage.service';
 
@@ -45,7 +46,11 @@ export class ImagenWebService {
     }
 
     const original = await this.fileStorage.leer(rutaOriginal);
-    const jpeg = await (await decodificarImagen(original))
+    // Un PDF no lo decodifica sharp (image-decoder.ts) — se renderiza su
+    // primera página a PNG primero (specs/005-captura-pdf-facturas), y ese
+    // PNG sigue exactamente el mismo camino que ya existía para una foto.
+    const imagenFuente = esPdf(original) ? await renderizarPrimeraPagina(original) : original;
+    const jpeg = await (await decodificarImagen(imagenFuente))
       .rotate() // respeta la orientación EXIF; sin esto las fotos verticales salen acostadas
       .resize({ width: ANCHO_MAXIMO, withoutEnlargement: true })
       .jpeg({ quality: CALIDAD_JPEG })
