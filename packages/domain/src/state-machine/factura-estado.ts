@@ -10,8 +10,13 @@ export type FacturaEstado =
 const TRANSICIONES_PERMITIDAS: Readonly<Record<FacturaEstado, readonly FacturaEstado[]>> = {
   recibida: ['procesando'],
   procesando: ['extraída', 'necesita_revisión', 'fallida', 'varias_facturas'],
-  extraída: [],
-  necesita_revisión: ['extraída'],
+  // `procesando` también es un destino válido desde aquí (no solo desde
+  // `fallida`): reprocesar (specs/005-captura-pdf-facturas) permite volver a
+  // extraer una factura ya extraída cuando algo externo a la extracción
+  // misma cambió (p. ej. la identificación propia configurada), sin
+  // necesitar borrar y resubir el archivo.
+  extraída: ['procesando'],
+  necesita_revisión: ['extraída', 'procesando'],
   fallida: ['procesando'],
   // Terminal, sin reintento sobre el mismo registro (data-model.md,
   // specs/002-rediseno-visual-web) — el usuario recaptura fotos nuevas.

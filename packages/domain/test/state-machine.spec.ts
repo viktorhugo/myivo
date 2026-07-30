@@ -14,6 +14,10 @@ describe('Máquina de estados de Factura', () => {
     ['procesando', 'varias_facturas'],
     ['necesita_revisión', 'extraída'],
     ['fallida', 'procesando'],
+    // Reprocesar (specs/005-captura-pdf-facturas): una factura ya extraída
+    // o que necesita revisión también puede volver a `procesando`.
+    ['extraída', 'procesando'],
+    ['necesita_revisión', 'procesando'],
   ];
 
   const transicionesInvalidas: Array<[FacturaEstado, FacturaEstado]> = [
@@ -22,10 +26,8 @@ describe('Máquina de estados de Factura', () => {
     ['recibida', 'fallida'],
     ['recibida', 'recibida'],
     ['recibida', 'varias_facturas'],
-    ['extraída', 'procesando'],
     ['extraída', 'necesita_revisión'],
     ['extraída', 'fallida'],
-    ['necesita_revisión', 'procesando'],
     ['necesita_revisión', 'fallida'],
     ['fallida', 'extraída'],
     ['fallida', 'necesita_revisión'],

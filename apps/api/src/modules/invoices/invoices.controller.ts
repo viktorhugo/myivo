@@ -184,11 +184,15 @@ export class InvoicesController {
   }
 
   /**
-   * Reintenta la extracción para una factura en `fallida` (FR-013). No aplica
-   * a otros estados. Despacha sin esperar — igual que `subir()` — y transiciona
-   * a `procesando` antes de responder: si esperara el resultado completo, la
-   * respuesta nunca reflejaría el estado intermedio y el frontend jamás vería
-   * "procesando", solo el resultado final.
+   * Reintenta/reprocesa la extracción de una factura en `fallida` (FR-013),
+   * `necesita_revisión`, o `extraída` — este último par permite volver a
+   * extraer cuando algo externo a la extracción cambió (p. ej. la
+   * identificación propia configurada) sin borrar y resubir el archivo
+   * (specs/005-captura-pdf-facturas). No aplica a otros estados. Despacha sin
+   * esperar — igual que `subir()` — y transiciona a `procesando` antes de
+   * responder: si esperara el resultado completo, la respuesta nunca
+   * reflejaría el estado intermedio y el frontend jamás vería "procesando",
+   * solo el resultado final.
    */
   @Post(':id/reprocess')
   async reprocesar(@Param('id') id: string): Promise<Factura> {
@@ -196,9 +200,10 @@ export class InvoicesController {
     if (!factura) {
       throw new NotFoundException(`Factura ${id} no encontrada`);
     }
-    if (factura.estado !== 'fallida') {
+    const ESTADOS_REPROCESABLES: readonly Factura['estado'][] = ['fallida', 'necesita_revisión', 'extraída'];
+    if (!ESTADOS_REPROCESABLES.includes(factura.estado)) {
       throw new BadRequestException(
-        `Solo se puede reprocesar una factura en estado "fallida" (actual: "${factura.estado}")`,
+        `No se puede reprocesar una factura en estado "${factura.estado}"`,
       );
     }
 

@@ -778,7 +778,14 @@ export default function Detalle({
         </div>
       )}
 
-      {factura.estado === 'fallida' && (
+      {/* `fallida` es el único caso de "algo salió mal"; en `necesita_revisión` y
+          `extraída` la extracción ya funcionó — se ofrece reprocesar igual, por
+          si algo externo a la extracción cambió (p. ej. la identificación
+          propia configurada, specs/005-captura-pdf-facturas), sin necesitar
+          borrar y resubir el archivo. Mismo botón, etiqueta genérica. */}
+      {(factura.estado === 'fallida' ||
+        factura.estado === 'necesita_revisión' ||
+        factura.estado === 'extraída') && (
         <p>
           <button
             type="button"
@@ -787,7 +794,7 @@ export default function Detalle({
             disabled={reprocesando}
             style={{ padding: '8px 14px' }}
           >
-            {reprocesando ? 'Reprocesando…' : 'Reintentar extracción'}
+            {reprocesando ? 'Reprocesando…' : 'Reprocesar'}
           </button>
         </p>
       )}
