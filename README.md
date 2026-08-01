@@ -1,6 +1,6 @@
 # MyIvo
 
-Sistema personal de captura y registro estructurado de facturas físicas y electrónicas (declaración de renta, Colombia). Fotografías o subes una factura (o el PDF de una factura electrónica), el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío), `specs/003-validacion-dian/spec.md` para la validación asistida de CUFEs contra la DIAN, `specs/004-reporte-anual-renta/spec.md` para el reporte anual de compras elegibles y su exportación, y `specs/005-captura-pdf-facturas/spec.md` para la captura de facturas electrónicas en PDF.
+Sistema de captura y registro estructurado de facturas físicas y electrónicas (declaración de renta, Colombia), autoalojado y de registro abierto — cualquier persona crea su propia cuenta y sus datos quedan completamente aislados de los de cualquier otra. Fotografías o subes una factura (o el PDF de una factura electrónica), el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío), `specs/003-validacion-dian/spec.md` para la validación asistida de CUFEs contra la DIAN, `specs/004-reporte-anual-renta/spec.md` para el reporte anual de compras elegibles y su exportación, `specs/005-captura-pdf-facturas/spec.md` para la captura de facturas electrónicas en PDF, y `specs/006-multi-usuario/spec.md` para el registro abierto y el aislamiento entre cuentas.
 
 ## Stack
 
@@ -8,6 +8,7 @@ Sistema personal de captura y registro estructurado de facturas físicas y elect
 - **Frontend**: Vite + React (`apps/web`) — dos temas visuales conmutables (Industry/Nocturne, ver abajo), `lucide-react` + `@phosphor-icons/react` para iconografía, fuentes auto-hospedadas vía `@fontsource/barlow`, `@fontsource/barlow-condensed` y `@fontsource/inter` (nunca CDN externo — constitution Principio VII)
 - **Dominio**: TypeScript puro sin dependencias de framework (`packages/domain`) — reglas tributarias, cuadre monetario, máquina de estados
 - **Monorepo**: pnpm + Turborepo
+- **Cuentas**: Better Auth (registro con correo/contraseña, verificación de correo vía Resend, sesión por cookie) + Row-Level Security de PostgreSQL como segunda capa de aislamiento entre cuentas, además del `usuarioId` explícito en cada consulta — ver abajo
 - **Extracción**: adaptador `InvoiceExtractor` sobre Claude, OpenAI, Gemini, o cualquier proveedor compatible con la API de OpenAI (Z.ai, Qwen, Kimi, u OpenRouter — agregador con acceso a muchos modelos abiertos con visión, como Qwen3-VL o GLM, bajo una sola cuenta) — ver `specs/001-captura-facturas/research.md` § 10. DeepSeek está preparado en el código pero deshabilitado: su API pública todavía no acepta imágenes.
 
 ## Temas visuales
@@ -46,15 +47,27 @@ El PDF de una factura electrónica recibida por correo se sube por el mismo fluj
 
 - La primera página del PDF se renderiza a imagen en memoria (`pdf-to-png-converter`) antes de entrar al mismo camino que ya existía para una foto: extracción por LLM de visión, decodificación de CUFE por QR (siempre preferida sobre cualquier respaldo, constitution Principio III), clasificación tributaria y elegibilidad — ninguno de los cuatro adaptadores de `InvoiceExtractor` ni el decodificador de CUFE cambian.
 - El PDF original se guarda tal cual, sin modificar (constitution Principio I) — el renderizado es un archivo derivado nuevo, vinculado al original, nunca lo reemplaza.
-- Una factura ya extraída (`extraída` o `necesita_revisión`, no solo `fallida`) se puede **reprocesar** desde su Detalle sin borrarla ni resubir el archivo — útil, por ejemplo, después de corregir `MIS_IDENTIFICACIONES` en `apps/api/.env`: la elegibilidad se calcula una sola vez durante la extracción y no se recalcula sola porque cambie la configuración externa.
+- Una factura ya extraída (`extraída` o `necesita_revisión`, no solo `fallida`) se puede **reprocesar** desde su Detalle sin borrarla ni resubir el archivo — útil, por ejemplo, después de corregir tu identificación tributaria propia desde "Mi cuenta": la elegibilidad se calcula una sola vez durante la extracción y no se recalcula sola porque cambie la configuración de la cuenta.
 
 Ver `specs/005-captura-pdf-facturas/research.md` para el detalle de estas decisiones (por qué `pdf-to-png-converter` sobre otras librerías, y por qué se prefirió no renombrar `Factura.rutaImagenOriginal`).
+
+## Registro y cuentas
+
+Registro abierto — cualquier persona crea su propia cuenta (correo + contraseña) y verifica su correo antes de poder usar la app. Cada cuenta ve exclusivamente sus propias facturas, duplicados, validaciones DIAN y reporte anual — acceder al identificador de un registro ajeno (aunque sea por URL directa) responde exactamente igual que uno inexistente.
+
+- **Autenticación**: [Better Auth](https://better-auth.com) — registro, verificación de correo (envía el enlace vía Resend), inicio/cierre de sesión, y cambio de contraseña propia. Reemplaza por completo el usuario único con contraseña fija de las features 001-005.
+- **Aislamiento a dos capas** (`specs/006-multi-usuario/data-model.md`): cada consulta de `Factura` y sus tablas dependientes lleva `usuarioId` explícito en el `where` de Prisma (defensa en profundidad) **y** Row-Level Security de PostgreSQL (`apps/api/prisma/rls-policies.sql`, con `FORCE ROW LEVEL SECURITY`) filtra a nivel de base de datos según la variable de sesión `app.usuario_id`, fijada en una transacción por request (`rls-transaction.interceptor.ts`). Ninguna de las dos capas sustituye a la otra.
+- **Identificación tributaria propia**: cada cuenta configura la suya desde "Mi cuenta" (`PUT /cuenta/identificaciones`) — reemplaza la variable de entorno `MIS_IDENTIFICACIONES` de las features 001-005, con efecto inmediato en la siguiente factura capturada, sin reiniciar nada.
+- Los datos que ya existían antes de esta feature no se pierden: un script de migración de datos (`apps/api/scripts/migrar-datos-existentes.ts`, ejecución única) crea la cuenta ya verificada del usuario original y le asigna todas las facturas ya capturadas.
+
+Ver `specs/006-multi-usuario/research.md` para el detalle de estas decisiones (por qué Better Auth sobre otras librerías de auth para self-hosted, por qué Row-Level Security como segunda capa en vez de confiar solo en el filtro de aplicación, y la migración de datos existentes).
 
 ## Requisitos
 
 - Node.js 22 LTS
 - pnpm 10.x (`packageManager` en `package.json`)
 - Docker (para PostgreSQL en desarrollo)
+- Cuenta gratuita en [Resend](https://resend.com) (correo de verificación de cuenta nueva)
 
 ## Desarrollo local
 
@@ -65,28 +78,31 @@ pnpm install
 cp .env.example .env                       # credenciales de postgres/caddy
 cp apps/api/.env.example apps/api/.env     # ver comentarios de cada variable en el archivo
 
-# Base de datos
+# Base de datos — una sola migración aplica todo (facturas, cuentas, y las
+# políticas de Row-Level Security, ya versionadas como migraciones normales)
 docker compose up -d postgres
 pnpm --filter @myivo/api prisma:migrate
-
-# Genera el hash de tu contraseña (FR-030, un solo usuario) y pégalo en apps/api/.env
-node -e "require('argon2').hash('tu-contraseña').then(console.log)"
 
 pnpm build
 pnpm --filter @myivo/api dev    # API en :3000
 pnpm --filter @myivo/web dev    # SPA en :5173
 ```
 
+Regístrate desde la propia app (pantalla de login → "¿No tienes cuenta? Crear una") — no hay usuario ni contraseña preconfigurados.
+
 Variables imprescindibles antes del primer uso real (`apps/api/.env`):
 
-- `AUTH_PASSWORD_HASH` — hash Argon2 de tu contraseña, no un placeholder
-- `MIS_IDENTIFICACIONES` — tu(s) cédula/NIT; sin esto ningún documento puede calificar como elegible (FR-015)
+- `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` / `WEB_ORIGIN` — ver comentarios en `.env.example`
+- `RESEND_API_KEY` / `EMAIL_FROM` — sin esto, nadie recibe el correo de verificación y no puede usar la app
 - `EXTRACTION_PROVIDER` + la API key del proveedor elegido
 
 ## Tests
 
 ```bash
 pnpm test        # Jest — reglas de dominio (obligatorio por constitution Principio VIII)
+                  # + apps/api/test/aislamiento-cuentas.e2e-spec.ts (única excepción
+                  # deliberada a "sin tests en apps/api" — plan.md § Testing de
+                  # specs/006-multi-usuario — requiere una base de datos real ya migrada)
 pnpm typecheck
 pnpm lint
 ```
@@ -95,7 +111,7 @@ pnpm lint
 
 Diseño previsto (`Caddyfile`, `docker-compose.yml`): Caddy como reverse proxy con TLS automático, sirviendo la SPA compilada y haciendo proxy de `/api/*` hacia el contenedor de la API; PostgreSQL en un volumen Docker; imágenes originales en un volumen Docker aparte (`invoice_images`), nunca sobrescritas (constitution Principio I).
 
-**Estado actual**: `docker-compose.yml` solo define el servicio `postgres` (usado también en desarrollo). Los servicios `api` y `web`/Caddy en compose son trabajo pendiente — hoy la API se ejecuta directamente (`node dist/main.js`) fuera de Docker. Antes de desplegar en el VPS real falta: agregar esos dos servicios al compose, montar `invoice_images` en el contenedor de `api`, y fijar `APP_DOMAIN`/`CADDY_ACME_EMAIL` en el `.env` de la raíz.
+**Estado actual**: `docker-compose.yml` solo define el servicio `postgres` (usado también en desarrollo). Los servicios `api` y `web`/Caddy en compose son trabajo pendiente — hoy la API se ejecuta directamente (`node dist/main.js`) fuera de Docker. Antes de desplegar en el VPS real falta: agregar esos dos servicios al compose, montar `invoice_images` en el contenedor de `api`, fijar `APP_DOMAIN`/`CADDY_ACME_EMAIL` en el `.env` de la raíz, y actualizar `BETTER_AUTH_URL`/`WEB_ORIGIN` en `apps/api/.env` al dominio real (dejan de ser `localhost`).
 
 **Costo operativo estimado** (constitution Principio VII, objetivo <15 USD/mes):
 

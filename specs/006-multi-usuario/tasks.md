@@ -83,8 +83,8 @@
 
 **Purpose**: mejoras que afectan a ambas historias, después de que están construidas.
 
-- [ ] T020 [P] Actualizar `README.md`: sección nueva sobre registro/cuentas, actualizar "Requisitos" y variables de entorno (ya no `AUTH_USERNAME`/`AUTH_PASSWORD_HASH`/`MIS_IDENTIFICACIONES`), nota sobre Resend y Row-Level Security — mismo estilo que las secciones ya agregadas para 002-005
-- [ ] T021 Verificación estática completa de punta a punta: `tsc` + `eslint` en `packages/domain`, `apps/api`, `apps/web`; `jest` en `packages/domain` (70 tests existentes, sin cambios) y en `apps/api` (incluye T016, esta vez sí en verde, no "sin tests"). La validación funcional real de `quickstart.md` (P1→P2 con dos cuentas y correos reales) requiere accionar el navegador y correos reales, y no se ejecuta aquí — queda documentada como pendiente manual del usuario. **Recordatorio explícito**: las migraciones de Prisma (T004/T005) y el script de datos (T010) contra la base de datos real los ejecuta el usuario — nunca el asistente, en ningún punto de esta feature.
+- [X] T020 [P] Actualizar `README.md`: sección nueva sobre registro/cuentas, actualizar "Requisitos" y variables de entorno (ya no `AUTH_USERNAME`/`AUTH_PASSWORD_HASH`/`MIS_IDENTIFICACIONES`), nota sobre Resend y Row-Level Security — mismo estilo que las secciones ya agregadas para 002-005
+- [X] T021 Verificación estática completa de punta a punta: `tsc` + `eslint` en `packages/domain`, `apps/api`, `apps/web`; `jest` en `packages/domain` (70 tests existentes, sin cambios) y en `apps/api` (incluye T016, esta vez sí en verde, no "sin tests"). La validación funcional real de `quickstart.md` (P1→P2 con dos cuentas y correos reales) requiere accionar el navegador y correos reales, y no se ejecuta aquí — queda documentada como pendiente manual del usuario. **Recordatorio explícito**: las migraciones de Prisma (T004/T005) y el script de datos (T010) contra la base de datos real los ejecuta el usuario — nunca el asistente, en ningún punto de esta feature.
 
 ---
 

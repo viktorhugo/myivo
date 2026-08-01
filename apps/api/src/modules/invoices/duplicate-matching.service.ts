@@ -127,7 +127,7 @@ export class DuplicateMatchingService {
     const candidatos = await this.prisma.$queryRaw<CandidatoFuzzy[]>`
       SELECT id FROM facturas
       WHERE id != ${facturaId}
-        AND "usuarioId" = ${usuarioId}::uuid
+        AND "usuarioId" = ${usuarioId}
         AND "eliminadaEn" IS NULL
         AND (cufe IS NULL OR "cufeOrigen" = 'ocr_respaldo')
         AND "fechaHoraCompra"::date = ${factura.fechaHoraCompra}::date
