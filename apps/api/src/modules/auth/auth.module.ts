@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.schema';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AUTH, crearAuth } from './auth';
+import { CuentaController } from './cuenta.controller';
 import { SessionUsuarioGuard } from './guards/session-usuario.guard';
 import { UsuarioService } from './usuario.service';
 
@@ -11,6 +12,7 @@ import { UsuarioService } from './usuario.service';
 // mismo patrón que PrismaModule (prisma.module.ts).
 @Global()
 @Module({
+  controllers: [CuentaController],
   providers: [
     {
       provide: AUTH,

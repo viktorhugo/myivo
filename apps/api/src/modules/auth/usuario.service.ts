@@ -19,4 +19,23 @@ export class UsuarioService {
     });
     return usuario.identificacionesTributarias;
   }
+
+  /**
+   * Reemplaza la lista completa (contracts/api.md § Identificaciones
+   * tributarias propias) — no un endpoint genérico de Better Auth: el campo
+   * tiene `input: false` en la config de auth.ts a propósito, para que
+   * nadie pueda fijarlo en el registro; esta es la única vía para cambiarlo,
+   * ya autenticada por SessionUsuarioGuard en cuenta.controller.ts.
+   */
+  async actualizarIdentificaciones(
+    usuarioId: string,
+    identificaciones: readonly string[],
+  ): Promise<readonly string[]> {
+    const usuario = await this.prisma.user.update({
+      where: { id: usuarioId },
+      data: { identificacionesTributarias: [...identificaciones] },
+      select: { identificacionesTributarias: true },
+    });
+    return usuario.identificacionesTributarias;
+  }
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Captura from './pages/Captura';
 import ConciliacionDian from './pages/ConciliacionDian';
+import CuentaPropia from './pages/CuentaPropia';
 import Detalle from './pages/Detalle';
 import Listado, { type FiltrosListadoIniciales } from './pages/Listado';
 import ReporteAnual from './pages/ReporteAnual';
@@ -14,7 +15,8 @@ type Vista =
   | { tipo: 'captura' }
   | { tipo: 'detalle'; facturaId: string }
   | { tipo: 'conciliacion-dian' }
-  | { tipo: 'reporte-anual' };
+  | { tipo: 'reporte-anual' }
+  | { tipo: 'cuenta-propia' };
 
 export default function App() {
   const [vista, setVista] = useState<Vista>({ tipo: 'listado' });
@@ -50,6 +52,22 @@ export default function App() {
         }}
       >
         <SelectorTema preferencia={preferencia} onCambiar={setPreferencia} />
+        <button
+          type="button"
+          onClick={() => setVista({ tipo: 'cuenta-propia' })}
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 12,
+            background: 'transparent',
+            color: 'var(--color-text-muted)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-button)',
+            padding: '4px 8px',
+            cursor: 'pointer',
+          }}
+        >
+          Mi cuenta
+        </button>
         <button
           type="button"
           onClick={() => authClient.signOut()}
@@ -100,6 +118,9 @@ export default function App() {
           onVolver={() => setVista({ tipo: 'listado' })}
           onAbrirListado={(filtrosIniciales) => setVista({ tipo: 'listado', filtrosIniciales })}
         />
+      )}
+      {vista.tipo === 'cuenta-propia' && (
+        <CuentaPropia tema={temaResuelto} onVolver={() => setVista({ tipo: 'listado' })} />
       )}
     </main>
   );

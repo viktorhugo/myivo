@@ -71,9 +71,9 @@
 
 ### Implementación para User Story 2
 
-- [ ] T017 [P] [US2] Endpoint `GET`/`PUT /cuenta/identificaciones` — controller nuevo en `apps/api/src/modules/auth/cuenta.controller.ts` (contracts/api.md § Identificaciones tributarias propias, FR-007) (depende de T008)
-- [ ] T018 [P] [US2] Confirmar/exponer el cambio de contraseña propia de Better Auth (T007) — si no queda expuesto por defecto, envolverlo en un endpoint propio (FR-009, contracts/api.md)
-- [ ] T019 [US2] `apps/web/src/pages/CuentaPropia.tsx`: pantalla nueva — cambiar contraseña + configurar identificaciones tributarias propias (depende de T017, T018)
+- [X] T017 [P] [US2] Endpoint `GET`/`PUT /cuenta/identificaciones` — controller nuevo en `apps/api/src/modules/auth/cuenta.controller.ts` (contracts/api.md § Identificaciones tributarias propias, FR-007) (depende de T008)
+- [X] T018 [P] [US2] Confirmar/exponer el cambio de contraseña propia de Better Auth (T007) — si no queda expuesto por defecto, envolverlo en un endpoint propio (FR-009, contracts/api.md)
+- [X] T019 [US2] `apps/web/src/pages/CuentaPropia.tsx`: pantalla nueva — cambiar contraseña + configurar identificaciones tributarias propias (depende de T017, T018)
 
 **Checkpoint**: US1 y US2 completas — cada cuenta gestiona su propio acceso y su propia configuración tributaria, sin ningún archivo de configuración compartido.
 
