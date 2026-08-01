@@ -18,6 +18,11 @@
 
 /* ============================= Industry (claro) ============================= */
 :root[data-theme='industry'] {
+  /* Sin esto, los controles nativos (inputs, <select>, scrollbars) siguen el
+     modo oscuro/claro del sistema operativo en vez del tema elegido en la
+     app — con el sistema en oscuro, un <input> sin estilo propio se veía
+     con fondo oscuro incluso en el tema "Claro". */
+  color-scheme: light;
   --color-bg: #f2f2f3;
   --color-text: #1d1f20;
   --color-text-muted: rgba(29, 31, 32, 0.55);
@@ -57,6 +62,7 @@
 
 /* ============================= Nocturne (oscuro) ============================= */
 :root[data-theme='nocturne'] {
+  color-scheme: dark;
   --color-bg: #161826;
   --color-text: #e9e9ed;
   --color-text-muted: rgba(233, 233, 237, 0.5);
@@ -674,3 +680,17 @@ body {
 .badge-estado.varias { color: #6b3f66; }
 [data-theme='industry'] .badge-estado.varias { background: rgba(138, 90, 134, 0.13); }
 [data-theme='nocturne'] .badge-estado.varias { color: #d59bcf; border: 1px solid rgba(213, 155, 207, 0.4); }
+
+/* Oculta visualmente sin sacarlo del árbol de accesibilidad — a diferencia
+   de display:none, un lector de pantalla sigue anunciando esto. */
+.visually-hidden {
+  position: absolute;
+  clip-path: inset(50%);
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}

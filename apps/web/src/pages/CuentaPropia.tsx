@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useId, useState, type CSSProperties, type FormEvent } from 'react';
 import { authClient } from '../services/auth-client';
 import { actualizarIdentificaciones, obtenerIdentificaciones } from '../services/cuenta';
 import { obtenerIcono } from '../theme/iconos';
@@ -13,10 +13,86 @@ function parsearIdentificaciones(texto: string): string[] {
     .filter((identificacion) => identificacion.length > 0);
 }
 
+/**
+ * Input de contraseña con botón para mostrar/ocultar el valor — patrón de
+ * modern-web-guidance § forms (botón `type="button"` con `aria-pressed`,
+ * warning para lector de pantalla antes de revelar, nunca reemplaza el
+ * `<label>` con `placeholder`).
+ */
+function CampoContraseña({
+  tema,
+  etiqueta,
+  valor,
+  onCambiar,
+  autoComplete,
+  minLength,
+  descripcion,
+  ...resto
+}: {
+  tema: TemaResuelto;
+  etiqueta: string;
+  valor: string;
+  onCambiar: (valor: string) => void;
+  autoComplete: 'current-password' | 'new-password';
+  minLength?: number;
+  descripcion?: string;
+} & Pick<React.InputHTMLAttributes<HTMLInputElement>, 'onBlur'>) {
+  const [visible, setVisible] = useState(false);
+  const id = useId();
+  const idDescripcion = descripcion ? `${id}-hint` : undefined;
+  const idAdvertencia = `${id}-warning`;
+  const IconoOjo = obtenerIcono(visible ? 'ocultar-contraseña' : 'mostrar-contraseña', tema);
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      {/* label con htmlFor explícito, no envolviendo el botón: un botón
+          interactivo anidado dentro de un <label> implícito puede competir
+          con el paso de foco/clic del label hacia su control asociado. */}
+      <label htmlFor={id} style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
+        {etiqueta}
+      </label>
+      <span id={idAdvertencia} className="visually-hidden">
+        Al mostrarla, tu contraseña queda visible en pantalla.
+      </span>
+      <span style={{ position: 'relative', display: 'block', marginTop: 4 }}>
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          value={valor}
+          onChange={(e) => onCambiar(e.target.value)}
+          autoComplete={autoComplete}
+          minLength={minLength}
+          required
+          aria-describedby={idDescripcion}
+          style={{ display: 'block', width: '100%', boxSizing: 'border-box', paddingRight: 34 }}
+          {...resto}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          aria-pressed={visible}
+          aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          aria-describedby={visible ? undefined : idAdvertencia}
+          style={botonOjo}
+        >
+          <IconoOjo size={16} strokeWidth={1.5} />
+        </button>
+      </span>
+      {descripcion && (
+        <span id={idDescripcion} style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted-2)', marginTop: 3 }}>
+          {descripcion}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** US2 (spec.md) — cambiar contraseña propia + configurar la identificación tributaria propia, sin depender de MIS_IDENTIFICACIONES ni de que alguien más edite un archivo. */
 export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; onVolver: () => void }) {
   const [contraseñaActual, setContraseñaActual] = useState('');
   const [contraseñaNueva, setContraseñaNueva] = useState('');
+  const [confirmacion, setConfirmacion] = useState('');
+  const [confirmacionTocada, setConfirmacionTocada] = useState(false);
   const [cambiandoContraseña, setCambiandoContraseña] = useState(false);
   const [errorContraseña, setErrorContraseña] = useState<string | null>(null);
   const [contraseñaCambiada, setContraseñaCambiada] = useState(false);
@@ -34,8 +110,17 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
       .finally(() => setCargandoIdentificaciones(false));
   }, []);
 
+  // Solo se avisa el desacuerdo después de que el usuario salió del campo de
+  // confirmación (modern-web-guidance § validate-input-after-interaction) —
+  // avisar mientras todavía está escribiendo la confirmación es prematuro.
+  const noCoinciden = confirmacionTocada && confirmacion.length > 0 && contraseñaNueva !== confirmacion;
+
   async function manejarCambioContraseña(event: FormEvent) {
     event.preventDefault();
+    if (contraseñaNueva !== confirmacion) {
+      setConfirmacionTocada(true);
+      return;
+    }
     setCambiandoContraseña(true);
     setErrorContraseña(null);
     setContraseñaCambiada(false);
@@ -50,6 +135,8 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
       setContraseñaCambiada(true);
       setContraseñaActual('');
       setContraseñaNueva('');
+      setConfirmacion('');
+      setConfirmacionTocada(false);
     }
     setCambiandoContraseña(false);
   }
@@ -126,29 +213,38 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
         <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
           Cambiar contraseña
         </p>
-        <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginTop: 10 }}>
-          Contraseña actual
-          <input
-            type="password"
-            value={contraseñaActual}
-            onChange={(e) => setContraseñaActual(e.target.value)}
-            autoComplete="current-password"
-            required
-            style={{ display: 'block', width: '100%', marginTop: 4, boxSizing: 'border-box' }}
-          />
-        </label>
-        <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginTop: 10 }}>
-          Contraseña nueva
-          <input
-            type="password"
-            value={contraseñaNueva}
-            onChange={(e) => setContraseñaNueva(e.target.value)}
-            autoComplete="new-password"
-            minLength={8}
-            required
-            style={{ display: 'block', width: '100%', marginTop: 4, boxSizing: 'border-box' }}
-          />
-        </label>
+
+        <CampoContraseña
+          tema={tema}
+          etiqueta="Contraseña actual"
+          valor={contraseñaActual}
+          onCambiar={setContraseñaActual}
+          autoComplete="current-password"
+        />
+        <CampoContraseña
+          tema={tema}
+          etiqueta="Contraseña nueva"
+          valor={contraseñaNueva}
+          onCambiar={setContraseñaNueva}
+          autoComplete="new-password"
+          minLength={8}
+          descripcion="Ocho caracteres o más."
+        />
+        <CampoContraseña
+          tema={tema}
+          etiqueta="Confirmar contraseña nueva"
+          valor={confirmacion}
+          onCambiar={setConfirmacion}
+          autoComplete="new-password"
+          minLength={8}
+          onBlur={() => setConfirmacionTocada(true)}
+        />
+        {noCoinciden && (
+          <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+            Las contraseñas no coinciden.
+          </p>
+        )}
+
         {errorContraseña && (
           <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
             {errorContraseña}
@@ -163,7 +259,7 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           type="submit"
           className="btn-primary"
           disabled={cambiandoContraseña}
-          style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+          style={{ display: 'block', marginTop: 20, padding: '8px 14px' }}
         >
           {cambiandoContraseña ? 'Cambiando…' : 'Cambiar contraseña'}
         </button>
@@ -178,4 +274,18 @@ const botonIcono: CSSProperties = {
   color: 'var(--color-text)',
   cursor: 'pointer',
   padding: 4,
+};
+
+const botonOjo: CSSProperties = {
+  position: 'absolute',
+  right: 4,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  background: 'transparent',
+  border: 'none',
+  color: 'var(--color-text-muted)',
+  cursor: 'pointer',
+  padding: 4,
+  display: 'flex',
+  alignItems: 'center',
 };
