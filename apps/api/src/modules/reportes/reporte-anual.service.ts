@@ -22,12 +22,15 @@ export interface DatosReporteAnual {
 export class ReporteAnualService {
   constructor(private readonly facturaRepository: FacturaRepository) {}
 
-  async calcular(anio: number): Promise<DatosReporteAnual> {
-    const { items } = await this.facturaRepository.listar({
-      fechaDesde: new Date(anio, 0, 1),
-      fechaHasta: new Date(anio, 11, 31, 23, 59, 59, 999),
-      elegibilidad: true,
-    });
+  async calcular(anio: number, usuarioId: string): Promise<DatosReporteAnual> {
+    const { items } = await this.facturaRepository.listar(
+      {
+        fechaDesde: new Date(anio, 0, 1),
+        fechaHasta: new Date(anio, 11, 31, 23, 59, 59, 999),
+        elegibilidad: true,
+      },
+      usuarioId,
+    );
 
     const facturasParaDominio: FacturaParaReporte[] = [];
     for (const factura of items) {

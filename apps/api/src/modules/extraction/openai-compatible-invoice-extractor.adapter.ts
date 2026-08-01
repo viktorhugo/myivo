@@ -32,7 +32,7 @@ import { decodificarImagen } from './image-decoder';
 
 interface PresetProveedorCompatible {
   baseURL: string;
-  apiKeyEnvVar: 'ZAI_API_KEY' | 'QWEN_API_KEY' | 'KIMI_API_KEY';
+  apiKeyEnvVar: 'ZAI_API_KEY' | 'QWEN_API_KEY' | 'KIMI_API_KEY' | 'DEEPSEEK_API_KEY' | 'OPENROUTER_API_KEY';
 }
 
 const PRESETS: Partial<Record<ExtractionProvider, PresetProveedorCompatible>> = {
@@ -41,6 +41,17 @@ const PRESETS: Partial<Record<ExtractionProvider, PresetProveedorCompatible>> = 
   // otra región (p. ej. EE.UU.), verifica el baseURL correcto en la consola.
   qwen: { baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', apiKeyEnvVar: 'QWEN_API_KEY' },
   kimi: { baseURL: 'https://api.moonshot.ai/v1', apiKeyEnvVar: 'KIMI_API_KEY' },
+  // Preset listo (baseURL confirmado jul-2026 contra api-docs.deepseek.com)
+  // pero extraction.module.ts rechaza 'deepseek' antes de llegar aquí: su
+  // API pública todavía no acepta imágenes. El día que la habiliten, borrar
+  // el rechazo en extraction.module.ts basta — este preset ya funcionaría.
+  deepseek: { baseURL: 'https://api.deepseek.com', apiKeyEnvVar: 'DEEPSEEK_API_KEY' },
+  // Agregador: una cuenta da acceso a muchos modelos abiertos con visión
+  // (Qwen3-VL, GLM, Llama, etc.) — EXTRACTION_MODEL elige cuál con el
+  // formato "proveedor/modelo" de OpenRouter, p. ej. "qwen/qwen3.7-flash"
+  // (confirmado contra openrouter.ai/api/v1/models, jul-2026 — la lista de
+  // modelos cambia seguido, verifica ahí el slug vigente).
+  openrouter: { baseURL: 'https://openrouter.ai/api/v1', apiKeyEnvVar: 'OPENROUTER_API_KEY' },
 };
 
 // Terceros que clonan la API de OpenAI suelen replicar la forma estable de

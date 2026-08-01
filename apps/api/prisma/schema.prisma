@@ -44,6 +44,76 @@ enum TipoDocumento {
   desconocido
 }
 
+// specs/006-multi-usuario: modelos de Better Auth (research.md § 1). Nombres
+// de modelo en inglés porque el adaptador de Prisma de Better Auth los
+// invoca así (prisma.user.*, prisma.session.*, etc.) — @@map sí se traduce,
+// porque solo renombra la tabla real en Postgres, no el cliente generado.
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  /// Reemplaza la variable de entorno MIS_IDENTIFICACIONES (FR-007) — propia de cada cuenta. `input: false` en la config de Better Auth: nunca se fija en el registro, solo vía PUT /cuenta/identificaciones (US2).
+  identificacionesTributarias String[] @default([])
+
+  sessions Session[]
+  accounts Account[]
+  facturas Factura[]
+
+  @@unique([email])
+  @@map("usuarios")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([token])
+  @@map("sesiones")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  /// Hash de contraseña cuando providerId = "credential" (correo/contraseña, sin OAuth) — nunca en texto plano.
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("cuentas_auth")
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verificaciones")
+}
+
 // Campos de captura (US1) + extracción (US2) + clasificación tributaria
 // (US3). El soft-delete (eliminadaEn) se agrega en specs/002-rediseno-visual-web
 // User Story 2 — ver data-model.md de esa feature.
@@ -51,6 +121,10 @@ model Factura {
   id                 String        @id @default(uuid())
   estado             FacturaEstado @default(recibida)
   rutaImagenOriginal String
+
+  /// Dueño de la factura — quien la capturó (specs/006-multi-usuario, FR-002). Obligatoria desde la migración usuario_id_obligatorio (tras scripts/migrar-datos-existentes.ts, que asignó dueño a las facturas ya existentes). Sin onDelete: Cascade a propósito (constitution Principio I) — eliminar una cuenta con facturas queda fuera de alcance hasta decidir explícitamente qué pasa con la evidencia.
+  usuarioId String
+  usuario   User  @relation(fields: [usuarioId], references: [id])
   /// Array de { ruta, tipoTransformacion, creadoEn } — ver ArchivoDerivado en el dominio.
   derivados          Json          @default("[]")
 

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectTransaction } from '@nestjs-cls/transactional';
 import {
   evaluarElegibilidad2026,
   medioPagoSchema,
@@ -19,9 +20,9 @@ import { Prisma } from '@prisma/client';
 import type {
   Factura as FacturaPrisma,
   FacturaEstado as FacturaEstadoPrisma,
+  PrismaClient,
   ValidacionDian as ValidacionDianPrisma,
 } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
 import type { FiltrosFactura } from './dto/filtrar-facturas.dto';
 import { normalizarNombreComercio } from './duplicate-matching.service';
 
@@ -234,25 +235,32 @@ function serializarValorOriginal(valor: unknown): string {
 
 @Injectable()
 export class FacturaRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  // @InjectTransaction() (no PrismaService directo): así cada llamada usa la
+  // transacción activa en el contexto CLS actual — la del request
+  // (rls-transaction.interceptor.ts) o la que extraction.processor.ts abre
+  // por su cuenta — con `app.usuario_id` ya fijado (specs/006-multi-usuario
+  // research.md § 3). El `usuarioId` explícito en cada método de abajo es
+  // una segunda capa (defensa en profundidad, tasks.md T012) — RLS es la
+  // garantía real.
+  constructor(@InjectTransaction() private readonly prisma: PrismaClient) {}
 
-  async crear(rutaImagenOriginal: string): Promise<Factura> {
+  async crear(rutaImagenOriginal: string, usuarioId: string): Promise<Factura> {
     const fila = await this.prisma.factura.create({
-      data: { rutaImagenOriginal },
+      data: { rutaImagenOriginal, usuarioId },
     });
     return aDominio(fila);
   }
 
   /** Excluye por defecto los registros con soft-delete (FR-009) — equivalente a "no encontrado". */
-  async obtenerPorId(id: string): Promise<Factura | null> {
-    const fila = await this.prisma.factura.findFirst({ where: { id, eliminadaEn: null } });
+  async obtenerPorId(id: string, usuarioId: string): Promise<Factura | null> {
+    const fila = await this.prisma.factura.findFirst({ where: { id, usuarioId, eliminadaEn: null } });
     return fila ? aDominio(fila) : null;
   }
 
   /** Facturas activas con CUFE — candidatas para conciliación en lote (specs/003-validacion-dian US2). */
-  async listarConCufe(): Promise<{ id: string; cufe: string }[]> {
+  async listarConCufe(usuarioId: string): Promise<{ id: string; cufe: string }[]> {
     const filas = await this.prisma.factura.findMany({
-      where: { cufe: { not: null }, eliminadaEn: null },
+      where: { usuarioId, cufe: { not: null }, eliminadaEn: null },
       select: { id: true, cufe: true },
     });
     return filas.map((fila) => ({ id: fila.id, cufe: fila.cufe as string }));
@@ -265,9 +273,9 @@ export class FacturaRepository {
    * todavía. No incluye el año más reciente: el tope superior del selector es
    * siempre el año en curso, que el frontend ya calcula localmente.
    */
-  async obtenerAnioMasAntiguo(): Promise<number | null> {
+  async obtenerAnioMasAntiguo(usuarioId: string): Promise<number | null> {
     const agregado = await this.prisma.factura.aggregate({
-      where: { eliminadaEn: null },
+      where: { usuarioId, eliminadaEn: null },
       _min: { fechaHoraCompra: true },
     });
     return agregado._min.fechaHoraCompra?.getFullYear() ?? null;
@@ -278,10 +286,10 @@ export class FacturaRepository {
    * sin tocar ningún otro campo ni el archivo original. Idempotente por
    * construcción — `obtenerPorId` ya excluye una factura ya eliminada, así
    * que reintentar sobre ella devuelve `null` en vez de un segundo efecto.
-   * Devuelve `null` si el id no existe o ya estaba eliminada.
+   * Devuelve `null` si el id no existe, no es de esta cuenta, o ya estaba eliminada.
    */
-  async eliminar(id: string): Promise<Factura | null> {
-    const actual = await this.obtenerPorId(id);
+  async eliminar(id: string, usuarioId: string): Promise<Factura | null> {
+    const actual = await this.obtenerPorId(id, usuarioId);
     if (!actual) {
       return null;
     }
@@ -297,8 +305,8 @@ export class FacturaRepository {
    * derivado se vincula al original, nunca lo reemplaza). Se lee y reescribe
    * la lista completa porque `derivados` es una columna JSON, no una tabla.
    */
-  async registrarDerivado(id: string, derivado: ArchivoDerivado): Promise<void> {
-    const fila = await this.prisma.factura.findUnique({ where: { id } });
+  async registrarDerivado(id: string, usuarioId: string, derivado: ArchivoDerivado): Promise<void> {
+    const fila = await this.prisma.factura.findFirst({ where: { id, usuarioId } });
     if (!fila) {
       return;
     }
@@ -328,9 +336,9 @@ export class FacturaRepository {
    * en COP (FR-027) — `conteo` sí incluye documentos en otras monedas,
    * porque no es un agregado monetario.
    */
-  async listar(filtros: FiltrosFactura): Promise<ResultadoListado> {
+  async listar(filtros: FiltrosFactura, usuarioId: string): Promise<ResultadoListado> {
     // Excluidas por defecto (FR-009) — sin flag para incluirlas, esta feature no trae papelera.
-    const where: Prisma.FacturaWhereInput = { eliminadaEn: null };
+    const where: Prisma.FacturaWhereInput = { usuarioId, eliminadaEn: null };
 
     if (filtros.fechaDesde || filtros.fechaHasta) {
       const filtroFecha: Prisma.DateTimeNullableFilter = {};
@@ -411,8 +419,8 @@ export class FacturaRepository {
   }
 
   /** Valida la transición contra la máquina de estados antes de persistir. */
-  async actualizarEstado(id: string, nuevoEstado: FacturaEstado): Promise<Factura> {
-    const actual = await this.obtenerPorId(id);
+  async actualizarEstado(id: string, usuarioId: string, nuevoEstado: FacturaEstado): Promise<Factura> {
+    const actual = await this.obtenerPorId(id, usuarioId);
     if (!actual) {
       throw new Error(`Factura ${id} no encontrada`);
     }
@@ -429,47 +437,58 @@ export class FacturaRepository {
   /**
    * Persiste el resultado de un intento de extracción: reemplaza los ítems
    * (un reprocesamiento no debe duplicarlos) y actualiza los campos
-   * extraídos de la Factura, en una sola transacción. NO toca `estado` — eso
-   * siempre pasa por `actualizarEstado` para no crear una segunda ruta de
-   * transición que se salte la máquina de estados.
+   * extraídos de la Factura. NO toca `estado` — eso siempre pasa por
+   * `actualizarEstado` para no crear una segunda ruta de transición que se
+   * salte la máquina de estados.
+   *
+   * Sin `$transaction([...])` propio a propósito: `this.prisma` ya resuelve
+   * al cliente de la transacción activa (siempre hay una — la del request o
+   * la que abre extraction.processor.ts, aislar-por-usuario.ts), y ese
+   * cliente no expone `$transaction` (Prisma lo omite en el tipo del
+   * cliente transaccional, para no anidar). La atomicidad ya la da esa
+   * transacción externa.
    */
   async guardarResultadoExtraccion(
     facturaId: string,
+    usuarioId: string,
     campos: CamposExtraidosFactura,
     items: ItemFacturaInput[],
   ): Promise<Factura> {
-    const [, , fila] = await this.prisma.$transaction([
-      this.prisma.itemFactura.deleteMany({ where: { facturaId } }),
-      this.prisma.itemFactura.createMany({
-        data: items.map((item) => ({ ...item, facturaId })),
-      }),
-      this.prisma.factura.update({
-        where: { id: facturaId },
-        data: {
-          comercioNombre: campos.comercioNombre,
-          comercioNombreNormalizado: campos.comercioNombre
-            ? normalizarNombreComercio(campos.comercioNombre)
-            : null,
-          comercioNIT: campos.comercioNIT,
-          fechaHoraCompra: campos.fechaHoraCompra,
-          moneda: campos.moneda,
-          subtotalCentavos: campos.subtotalCentavos,
-          ivaPorTarifa: campos.ivaPorTarifa as unknown as Prisma.InputJsonValue,
-          impuestoConsumoCentavos: campos.impuestoConsumoCentavos,
-          propinaCentavos: campos.propinaCentavos,
-          totalCentavos: campos.totalCentavos,
-          medioPago: campos.medioPago,
-          adquirienteNombre: campos.adquirienteNombre,
-          adquirienteIdentificacion: campos.adquirienteIdentificacion,
-          cufe: campos.cufe,
-          cufeOrigen: campos.cufeOrigen,
-          confianzaCampos: campos.confianzaCampos as unknown as Prisma.InputJsonValue,
-          tipoDocumento: campos.tipoDocumento,
-          elegibilidadTributaria: campos.elegibilidadTributaria,
-          elegibilidadMotivo: campos.elegibilidadMotivo,
-        },
-      }),
-    ]);
+    const actual = await this.obtenerPorId(facturaId, usuarioId);
+    if (!actual) {
+      throw new NotFoundException(`Factura ${facturaId} no encontrada`);
+    }
+
+    await this.prisma.itemFactura.deleteMany({ where: { facturaId } });
+    await this.prisma.itemFactura.createMany({
+      data: items.map((item) => ({ ...item, facturaId })),
+    });
+    const fila = await this.prisma.factura.update({
+      where: { id: facturaId },
+      data: {
+        comercioNombre: campos.comercioNombre,
+        comercioNombreNormalizado: campos.comercioNombre
+          ? normalizarNombreComercio(campos.comercioNombre)
+          : null,
+        comercioNIT: campos.comercioNIT,
+        fechaHoraCompra: campos.fechaHoraCompra,
+        moneda: campos.moneda,
+        subtotalCentavos: campos.subtotalCentavos,
+        ivaPorTarifa: campos.ivaPorTarifa as unknown as Prisma.InputJsonValue,
+        impuestoConsumoCentavos: campos.impuestoConsumoCentavos,
+        propinaCentavos: campos.propinaCentavos,
+        totalCentavos: campos.totalCentavos,
+        medioPago: campos.medioPago,
+        adquirienteNombre: campos.adquirienteNombre,
+        adquirienteIdentificacion: campos.adquirienteIdentificacion,
+        cufe: campos.cufe,
+        cufeOrigen: campos.cufeOrigen,
+        confianzaCampos: campos.confianzaCampos as unknown as Prisma.InputJsonValue,
+        tipoDocumento: campos.tipoDocumento,
+        elegibilidadTributaria: campos.elegibilidadTributaria,
+        elegibilidadMotivo: campos.elegibilidadMotivo,
+      },
+    });
     return aDominio(fila);
   }
 
@@ -495,6 +514,7 @@ export class FacturaRepository {
    */
   async aplicarCorreccion(
     facturaId: string,
+    usuarioId: string,
     campo: string,
     valorCorregido: string,
     identificacionesPropias: readonly string[],
@@ -504,7 +524,7 @@ export class FacturaRepository {
       throw new BadRequestException(`Campo no corregible: "${campo}"`);
     }
 
-    const actual = await this.prisma.factura.findUnique({ where: { id: facturaId } });
+    const actual = await this.prisma.factura.findFirst({ where: { id: facturaId, usuarioId } });
     if (!actual) {
       throw new NotFoundException(`Factura ${facturaId} no encontrada`);
     }
@@ -514,43 +534,42 @@ export class FacturaRepository {
       actual[definicion.columna as keyof FacturaPrisma],
     );
 
-    const fila = await this.prisma.$transaction(async (tx) => {
-      await tx.correccionManual.create({
-        data: { facturaId, campo, valorExtraidoOriginal: valorOriginalTexto, valorCorregido },
-      });
-
-      const datosActualizacion: Prisma.FacturaUpdateInput = { [definicion.columna]: valorParseado };
-      if (definicion.columna === 'comercioNombre') {
-        datosActualizacion.comercioNombreNormalizado =
-          typeof valorParseado === 'string' ? normalizarNombreComercio(valorParseado) : null;
-      }
-
-      let filaActualizada = await tx.factura.update({
-        where: { id: facturaId },
-        data: datosActualizacion,
-      });
-
-      if (CAMPOS_QUE_AFECTAN_ELEGIBILIDAD.has(definicion.columna)) {
-        const resultado = evaluarElegibilidad2026(
-          {
-            tipoDocumento: filaActualizada.tipoDocumento ?? 'desconocido',
-            adquirienteIdentificacion: filaActualizada.adquirienteIdentificacion,
-            medioPago: filaActualizada.medioPago,
-          },
-          identificacionesPropias,
-        );
-        filaActualizada = await tx.factura.update({
-          where: { id: facturaId },
-          data: {
-            elegibilidadTributaria: resultado.elegible,
-            elegibilidadMotivo: resultado.motivo,
-          },
-        });
-      }
-
-      return filaActualizada;
+    // Sin `$transaction(async (tx) => ...)` propio, mismo motivo que
+    // guardarResultadoExtraccion: `this.prisma` ya es el cliente de la
+    // transacción externa activa, que no expone `$transaction`.
+    await this.prisma.correccionManual.create({
+      data: { facturaId, campo, valorExtraidoOriginal: valorOriginalTexto, valorCorregido },
     });
 
-    return aDominio(fila);
+    const datosActualizacion: Prisma.FacturaUpdateInput = { [definicion.columna]: valorParseado };
+    if (definicion.columna === 'comercioNombre') {
+      datosActualizacion.comercioNombreNormalizado =
+        typeof valorParseado === 'string' ? normalizarNombreComercio(valorParseado) : null;
+    }
+
+    let filaActualizada = await this.prisma.factura.update({
+      where: { id: facturaId },
+      data: datosActualizacion,
+    });
+
+    if (CAMPOS_QUE_AFECTAN_ELEGIBILIDAD.has(definicion.columna)) {
+      const resultado = evaluarElegibilidad2026(
+        {
+          tipoDocumento: filaActualizada.tipoDocumento ?? 'desconocido',
+          adquirienteIdentificacion: filaActualizada.adquirienteIdentificacion,
+          medioPago: filaActualizada.medioPago,
+        },
+        identificacionesPropias,
+      );
+      filaActualizada = await this.prisma.factura.update({
+        where: { id: facturaId },
+        data: {
+          elegibilidadTributaria: resultado.elegible,
+          elegibilidadMotivo: resultado.motivo,
+        },
+      });
+    }
+
+    return aDominio(filaActualizada);
   }
 }

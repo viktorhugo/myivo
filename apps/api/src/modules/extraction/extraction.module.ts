@@ -29,7 +29,21 @@ function crearExtractor(configService: ConfigService<Env, true>): InvoiceExtract
     case 'zai':
     case 'qwen':
     case 'kimi':
+    case 'openrouter':
       return new OpenAICompatibleInvoiceExtractorAdapter(configService);
+    case 'deepseek':
+      // La API pública de DeepSeek todavía es solo texto (verificado
+      // jul-2026 — su visión sigue en pruebas gray-scale, sin lanzamiento
+      // general). Este extractor manda una foto de la factura: sin
+      // soporte de imágenes no puede cumplir el contrato de
+      // InvoiceExtractor, así que se rechaza acá en vez de arrancar con un
+      // adaptador que fallaría (o alucinaría) en cada extracción real.
+      // Para reactivarlo cuando DeepSeek lance visión: borra este case (el
+      // preset ya está listo en openai-compatible-invoice-extractor.adapter.ts,
+      // solo hace falta que caiga en la misma rama que zai/qwen/kimi).
+      throw new Error(
+        'EXTRACTION_PROVIDER="deepseek": su API pública todavía no soporta imágenes, no puede usarse para extraer facturas',
+      );
   }
 }
 

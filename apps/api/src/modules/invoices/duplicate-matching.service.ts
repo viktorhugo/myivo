@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectTransaction } from '@nestjs-cls/transactional';
 import { esDuplicadoExactoPorCufe, type Factura, type MarcaPosibleDuplicado } from '@myivo/domain';
-import { PrismaService } from '../../prisma/prisma.service';
+import type { PrismaClient } from '@prisma/client';
 import { aDominio } from './factura.repository';
 
 /** Similitud mínima (0-1) de `similarity()` de pg_trgm para considerar dos nombres de comercio "el mismo" (research.md § 6). */
@@ -72,7 +73,8 @@ export interface MarcaPendienteConFacturas extends MarcaPosibleDuplicado {
 
 @Injectable()
 export class DuplicateMatchingService {
-  constructor(private readonly prisma: PrismaService) {}
+  // Ver el comentario en factura.repository.ts sobre @InjectTransaction().
+  constructor(@InjectTransaction() private readonly prisma: PrismaClient) {}
 
   /**
    * Detecta duplicados para una factura recién extraída y, si encuentra uno,
@@ -88,16 +90,20 @@ export class DuplicateMatchingService {
    * el texto no calzó carácter por carácter — verificado con datos reales:
    * la misma foto releída dos veces produjo CUFEs distintos en un dígito. En
    * ese caso, si no hay coincidencia exacta, se cae al mecanismo difuso.
+   *
+   * Todas las consultas de candidatos quedan acotadas a `usuarioId` (FR-006):
+   * dos cuentas que capturan la misma compra (p. ej. la comparten) nunca se
+   * marcan como duplicado entre sí — cada una ve su propia copia intacta.
    */
-  async detectarYRegistrar(facturaId: string): Promise<void> {
-    const factura = await this.prisma.factura.findUnique({ where: { id: facturaId } });
+  async detectarYRegistrar(facturaId: string, usuarioId: string): Promise<void> {
+    const factura = await this.prisma.factura.findFirst({ where: { id: facturaId, usuarioId } });
     if (!factura) {
       return;
     }
 
     if (factura.cufe) {
       const otraConMismoCufe = await this.prisma.factura.findFirst({
-        where: { id: { not: facturaId }, cufe: factura.cufe, eliminadaEn: null },
+        where: { id: { not: facturaId }, usuarioId, cufe: factura.cufe, eliminadaEn: null },
         orderBy: { creadaEn: 'asc' },
       });
       if (otraConMismoCufe && esDuplicadoExactoPorCufe(factura.cufe, otraConMismoCufe.cufe)) {
@@ -121,6 +127,7 @@ export class DuplicateMatchingService {
     const candidatos = await this.prisma.$queryRaw<CandidatoFuzzy[]>`
       SELECT id FROM facturas
       WHERE id != ${facturaId}
+        AND "usuarioId" = ${usuarioId}::uuid
         AND "eliminadaEn" IS NULL
         AND (cufe IS NULL OR "cufeOrigen" = 'ocr_respaldo')
         AND "fechaHoraCompra"::date = ${factura.fechaHoraCompra}::date
@@ -170,12 +177,16 @@ export class DuplicateMatchingService {
    * (contracts/api.md). Excluye marcas donde cualquiera de las dos facturas
    * ya fue eliminada (FR-009) — no tiene sentido preguntar "¿es la misma
    * compra?" sobre una factura que el usuario ya eliminó por su cuenta.
+   * Acotado a `usuarioId` vía `facturaOriginal` — por construcción
+   * (detectarYRegistrar) ambas facturas de un par son siempre de la misma
+   * cuenta, así que filtrar por una basta (data-model.md § Aislamiento a
+   * dos capas).
    */
-  async obtenerPendientes(): Promise<MarcaPendienteConFacturas[]> {
+  async obtenerPendientes(usuarioId: string): Promise<MarcaPendienteConFacturas[]> {
     const filas = await this.prisma.marcaPosibleDuplicado.findMany({
       where: {
         estado: 'pendiente_confirmacion',
-        facturaOriginal: { eliminadaEn: null },
+        facturaOriginal: { usuarioId, eliminadaEn: null },
         facturaCandidata: { eliminadaEn: null },
       },
       include: { facturaOriginal: true, facturaCandidata: true },
@@ -206,9 +217,13 @@ export class DuplicateMatchingService {
    * determinista. El soft-delete reusa el mismo campo `eliminadaEn` de US2
    * (specs/002-rediseno-visual-web) — nunca purga nada (constitution Principio I).
    */
-  async resolver(marcaId: string, resolucion: 'duplicado' | 'distinto'): Promise<MarcaPosibleDuplicado> {
-    const marca = await this.prisma.marcaPosibleDuplicado.findUnique({
-      where: { id: marcaId },
+  async resolver(
+    marcaId: string,
+    usuarioId: string,
+    resolucion: 'duplicado' | 'distinto',
+  ): Promise<MarcaPosibleDuplicado> {
+    const marca = await this.prisma.marcaPosibleDuplicado.findFirst({
+      where: { id: marcaId, facturaOriginal: { usuarioId } },
       include: { facturaOriginal: true, facturaCandidata: true },
     });
     if (!marca) {

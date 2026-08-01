@@ -8,7 +8,7 @@ Sistema personal de captura y registro estructurado de facturas físicas y elect
 - **Frontend**: Vite + React (`apps/web`) — dos temas visuales conmutables (Industry/Nocturne, ver abajo), `lucide-react` + `@phosphor-icons/react` para iconografía, fuentes auto-hospedadas vía `@fontsource/barlow`, `@fontsource/barlow-condensed` y `@fontsource/inter` (nunca CDN externo — constitution Principio VII)
 - **Dominio**: TypeScript puro sin dependencias de framework (`packages/domain`) — reglas tributarias, cuadre monetario, máquina de estados
 - **Monorepo**: pnpm + Turborepo
-- **Extracción**: adaptador `InvoiceExtractor` sobre Claude, OpenAI, Gemini, o cualquier proveedor compatible con la API de OpenAI (Z.ai, Qwen, Kimi) — ver `specs/001-captura-facturas/research.md` § 10
+- **Extracción**: adaptador `InvoiceExtractor` sobre Claude, OpenAI, Gemini, o cualquier proveedor compatible con la API de OpenAI (Z.ai, Qwen, Kimi, u OpenRouter — agregador con acceso a muchos modelos abiertos con visión, como Qwen3-VL o GLM, bajo una sola cuenta) — ver `specs/001-captura-facturas/research.md` § 10. DeepSeek está preparado en el código pero deshabilitado: su API pública todavía no acepta imágenes.
 
 ## Temas visuales
 

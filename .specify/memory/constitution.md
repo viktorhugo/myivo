@@ -1,43 +1,48 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: (plantilla sin ratificar) → 1.0.0
-Bump rationale: Primera ratificación. La plantilla contenía únicamente tokens
-placeholder; esta es la definición inicial completa de la governance del proyecto.
+Version change: 1.0.0 → 2.0.0
+Bump rationale: MAJOR — redefinición incompatible del Principio VII. Hasta ahora el
+principio asumía explícitamente un solo usuario por instancia ("el único modelo de
+privacidad defendible aquí es que nunca salga de casa", sin concepto de cuenta). La
+enmienda permite varias cuentas reales en la misma instancia autoalojada, con una
+garantía nueva y no negociable: aislamiento total de datos entre cuentas. Cualquier
+feature o código que asuma "un solo usuario en todo el sistema" (p. ej. configuración
+global de identificaciones tributarias sin dueño) queda desactualizado por este cambio
+— de ahí el MAJOR, no un MINOR.
 
-Principios definidos (8, todos nuevos):
-  - I.    Inmutabilidad de la Evidencia
-  - II.   Exactitud Monetaria
-  - III.  Desconfianza por Defecto en la Extracción por IA
-  - IV.   Clasificación Tributaria Explícita y Versionada
-  - V.    Arquitectura Hexagonal
-  - VI.   Validación DIAN sin Trampas
-  - VII.  Privacidad y Soberanía Operativa
-  - VIII. Calidad Verificable
+Principio modificado:
+  - VII. Privacidad y Soberanía Operativa — de "los datos son del usuario" (singular,
+    instancia = una persona) a "los datos son de cada usuario" (una instancia
+    autoalojada puede servir a varias cuentas, cada una completamente aislada de las
+    demás). El resto del principio (autoalojado, cero telemetría a terceros, costo
+    operativo bajo) se mantiene intacto en su espíritu.
 
-Secciones añadidas:
-  - Máquina de Estados del Documento (operacionaliza II, III y VIII)
-  - Flujo de Desarrollo y Puertas de Calidad (operacionaliza VIII)
-  - Governance
+Principios sin cambios: I, II, III, IV, V, VI, VIII — ninguno depende del número de
+usuarios; se revisaron explícitamente y su lenguaje ya es neutral por cuenta ("el
+usuario o su contador", "el usuario confirma el resultado") sin necesitar ajuste.
 
-Secciones removidas: ninguna (la plantilla base no tenía contenido).
+Secciones añadidas: ninguna. Secciones removidas: ninguna.
 
 Plantillas dependientes:
   ✅ .specify/templates/plan-template.md   — "Constitution Check" es genérico
                                              ("[Gates determined based on constitution file]");
                                              no requiere edición, los gates se derivan en tiempo de /speckit-plan.
-  ✅ .specify/templates/spec-template.md   — estructura compatible; los principios se expresan
-                                             como FR/SC en cada feature, sin secciones nuevas obligatorias.
-  ✅ .specify/templates/tasks-template.md  — la categorización por user story admite las tareas
-                                             dirigidas por principios (tests de reglas de dominio,
-                                             transiciones de estado) sin cambios estructurales.
-  ✅ .claude/skills/speckit-*/SKILL.md     — revisados: usan la forma genérica con guion
-                                             (/speckit-plan, /speckit-tasks), sin referencias
-                                             obsoletas a agentes específicos.
-  ⚠ README.md / docs/quickstart.md         — no existen todavía. Al crearlos, deben enlazar
-                                             esta constitution (ver Governance).
+  ✅ .specify/templates/spec-template.md   — estructura compatible, sin cambios.
+  ✅ .specify/templates/tasks-template.md  — sin cambios estructurales requeridos.
+  ✅ .claude/skills/speckit-*/SKILL.md     — revisados: sin referencias a "un solo usuario"
+                                             que dependan del principio modificado.
+  ⚠ README.md                              — describe correctamente el sistema TAL COMO ESTÁ HOY
+                                             (auth de un solo usuario, `AUTH_USERNAME`/
+                                             `AUTH_PASSWORD_HASH` únicos, costo estimado para una
+                                             persona) — deliberadamente NO se edita en esta enmienda:
+                                             el código todavía no soporta varias cuentas, y describir
+                                             multi-usuario antes de que exista sería documentar algo
+                                             falso. Se actualiza en el Polish de la feature que
+                                             implemente cuentas reales (ver Next Actions).
 
-TODOs diferidos: ninguno.
+TODOs diferidos: ninguno (el diseño técnico de multi-usuario es intencionalmente una
+feature futura vía /speckit-specify, no parte de esta enmienda de gobernanza).
 -->
 
 # MyIvo Constitution
@@ -140,17 +145,26 @@ riesgo legal mayor que el problema que resuelve.
 
 ### VII. Privacidad y Soberanía Operativa
 
-Los datos son del usuario y viven donde el usuario decide.
+Los datos son de cada usuario, y viven donde quien opera la instancia decide.
 
 - Imágenes, montos y hábitos de consumo son datos sensibles: MUST vivir únicamente en
-  infraestructura controlada por el usuario. Telemetría a terceros: cero.
+  infraestructura controlada por quien opera la instancia. Telemetría a terceros: cero.
+- El sistema MUST admitir una o varias cuentas de usuario en la misma instancia
+  autoalojada. Los datos de una cuenta MUST ser completamente invisibles para
+  cualquier otra cuenta del mismo sistema, sin excepción — aislamiento total a nivel
+  de datos y de consulta, no solo de interfaz. Una fuga entre cuentas es tan grave
+  como una fuga a un tercero externo.
 - Los secretos NUNCA se versionan. La configuración va por variables de entorno, con
   validación al arranque que falla rápido si falta o es inválida.
-- El sistema completo MUST levantar con `docker compose up` en un VPS pequeño. Costo
-  operativo objetivo: menos de 15 USD/mes más el consumo de LLM.
+- El sistema completo MUST levantar con `docker compose up` en un VPS pequeño, sin
+  importar cuántas cuentas use. Costo operativo objetivo: menos de 15 USD/mes de
+  infraestructura, más el consumo de LLM (que escala con el uso total de todas las
+  cuentas, no es un costo fijo por cuenta).
 
 **Rationale**: El historial de facturas es un perfil de consumo completo de una persona.
-El único modelo de privacidad defendible aquí es que nunca salga de casa.
+El modelo de privacidad defendible es que los datos nunca salgan de la infraestructura
+que su dueño controla — eso ya no exige que la instancia sirva a una sola persona, exige
+que cada cuenta dentro de ella esté completamente aislada de las demás.
 
 ### VIII. Calidad Verificable
 
@@ -214,4 +228,4 @@ verificar el cumplimiento de los ocho principios. La complejidad se justifica o 
 **Guía de runtime**: cuando existan, `README.md` y `docs/quickstart.md` MUST enlazar este
 documento como fuente de autoridad y MUST NOT duplicar sus reglas, para evitar divergencia.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-07-25
+**Version**: 2.0.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-07-29

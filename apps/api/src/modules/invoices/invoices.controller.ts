@@ -15,12 +15,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { ConfigService } from '@nestjs/config';
 import type { CorreccionManual, Factura, ItemFactura, MarcaPosibleDuplicado } from '@myivo/domain';
 import type { Response } from 'express';
-import type { Env } from '../../config/env.schema';
 import { mimeTypeDeArchivo } from '../../common/mime';
-import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
+import { SessionUsuarioGuard } from '../auth/guards/session-usuario.guard';
+import { UsuarioId } from '../auth/usuario-id.decorator';
+import { UsuarioService } from '../auth/usuario.service';
 import { ExtractionProcessor } from '../extraction/extraction.processor';
 import { corregirCamposSchema, normalizarCorrecciones } from './dto/corregir-campos.dto';
 import { filtrarFacturasSchema } from './dto/filtrar-facturas.dto';
@@ -36,11 +36,9 @@ export interface FacturaDetalle extends Factura {
 }
 
 @Controller('invoices')
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionUsuarioGuard)
 export class InvoicesController {
   private readonly logger = new Logger(InvoicesController.name);
-
-  private readonly identificacionesPropias: readonly string[];
 
   constructor(
     private readonly facturaRepository: FacturaRepository,
@@ -48,10 +46,8 @@ export class InvoicesController {
     private readonly extractionProcessor: ExtractionProcessor,
     private readonly duplicateMatching: DuplicateMatchingService,
     private readonly imagenWeb: ImagenWebService,
-    configService: ConfigService<Env, true>,
-  ) {
-    this.identificacionesPropias = configService.get('MIS_IDENTIFICACIONES', { infer: true });
-  }
+    private readonly usuarioService: UsuarioService,
+  ) {}
 
   /**
    * Guarda cada imagen de inmediato y crea una Factura en `recibida` por
@@ -61,7 +57,10 @@ export class InvoicesController {
    */
   @Post()
   @UseInterceptors(FilesInterceptor('files'))
-  async subir(@UploadedFiles() files: Express.Multer.File[]): Promise<Factura[]> {
+  async subir(
+    @UploadedFiles() files: Express.Multer.File[],
+    @UsuarioId() usuarioId: string,
+  ): Promise<Factura[]> {
     if (!files || files.length === 0) {
       throw new BadRequestException('Debes adjuntar al menos un archivo');
     }
@@ -69,10 +68,10 @@ export class InvoicesController {
     const facturas: Factura[] = [];
     for (const file of files) {
       const ruta = await this.fileStorage.guardarOriginal(file.originalname, file.buffer);
-      const factura = await this.facturaRepository.crear(ruta);
+      const factura = await this.facturaRepository.crear(ruta, usuarioId);
       facturas.push(factura);
 
-      this.extractionProcessor.procesar(factura.id).catch((error: unknown) => {
+      this.extractionProcessor.procesar(factura.id, usuarioId).catch((error: unknown) => {
         this.logger.error(
           `Despacho de extracción falló para factura ${factura.id}`,
           error instanceof Error ? error.stack : String(error),
@@ -88,15 +87,15 @@ export class InvoicesController {
    * `sumaTotal` refleja el mismo filtro pero solo documentos en COP (FR-027).
    */
   @Get()
-  async listar(@Query() query: unknown): Promise<ResultadoListado> {
+  async listar(@Query() query: unknown, @UsuarioId() usuarioId: string): Promise<ResultadoListado> {
     const filtros = filtrarFacturasSchema.parse(query);
-    return this.facturaRepository.listar(filtros);
+    return this.facturaRepository.listar(filtros, usuarioId);
   }
 
   /** Detalle completo: campos extraídos, confianzaCampos, ítems y correcciones previas (FR-024). */
   @Get(':id')
-  async obtener(@Param('id') id: string): Promise<FacturaDetalle> {
-    const factura = await this.facturaRepository.obtenerPorId(id);
+  async obtener(@Param('id') id: string, @UsuarioId() usuarioId: string): Promise<FacturaDetalle> {
+    const factura = await this.facturaRepository.obtenerPorId(id, usuarioId);
     if (!factura) {
       throw new NotFoundException(`Factura ${id} no encontrada`);
     }
@@ -122,9 +121,10 @@ export class InvoicesController {
   async imagen(
     @Param('id') id: string,
     @Query('variant') variant: string | undefined,
+    @UsuarioId() usuarioId: string,
     @Res() res: Response,
   ): Promise<void> {
-    const factura = await this.facturaRepository.obtenerPorId(id);
+    const factura = await this.facturaRepository.obtenerPorId(id, usuarioId);
     if (!factura) {
       throw new NotFoundException(`Factura ${id} no encontrada`);
     }
@@ -132,6 +132,7 @@ export class InvoicesController {
     if (variant === TIPO_TRANSFORMACION_WEB) {
       const imagen = await this.imagenWeb.obtenerParaNavegador(
         factura.id,
+        usuarioId,
         factura.rutaImagenOriginal,
         factura.derivados,
       );
@@ -153,19 +154,22 @@ export class InvoicesController {
   async corregirCampos(
     @Param('id') id: string,
     @Body() body: unknown,
+    @UsuarioId() usuarioId: string,
   ): Promise<FacturaDetalle> {
     const correcciones = normalizarCorrecciones(corregirCamposSchema.parse(body));
+    const identificacionesPropias = await this.usuarioService.identificacionesDe(usuarioId);
 
     for (const correccion of correcciones) {
       await this.facturaRepository.aplicarCorreccion(
         id,
+        usuarioId,
         correccion.campo,
         correccion.valorCorregido,
-        this.identificacionesPropias,
+        identificacionesPropias,
       );
     }
 
-    return this.obtener(id);
+    return this.obtener(id, usuarioId);
   }
 
   /**
@@ -175,8 +179,8 @@ export class InvoicesController {
    * eliminada responde 404 en vez de un segundo efecto.
    */
   @Post(':id/delete')
-  async eliminar(@Param('id') id: string): Promise<Factura> {
-    const factura = await this.facturaRepository.eliminar(id);
+  async eliminar(@Param('id') id: string, @UsuarioId() usuarioId: string): Promise<Factura> {
+    const factura = await this.facturaRepository.eliminar(id, usuarioId);
     if (!factura) {
       throw new NotFoundException(`Factura ${id} no encontrada`);
     }
@@ -195,8 +199,8 @@ export class InvoicesController {
    * solo el resultado final.
    */
   @Post(':id/reprocess')
-  async reprocesar(@Param('id') id: string): Promise<Factura> {
-    const factura = await this.facturaRepository.obtenerPorId(id);
+  async reprocesar(@Param('id') id: string, @UsuarioId() usuarioId: string): Promise<Factura> {
+    const factura = await this.facturaRepository.obtenerPorId(id, usuarioId);
     if (!factura) {
       throw new NotFoundException(`Factura ${id} no encontrada`);
     }
@@ -207,9 +211,9 @@ export class InvoicesController {
       );
     }
 
-    const enProceso = await this.facturaRepository.actualizarEstado(id, 'procesando');
+    const enProceso = await this.facturaRepository.actualizarEstado(id, usuarioId, 'procesando');
 
-    this.extractionProcessor.procesar(id).catch((error: unknown) => {
+    this.extractionProcessor.procesar(id, usuarioId).catch((error: unknown) => {
       this.logger.error(
         `Reintento de extracción falló para factura ${id}`,
         error instanceof Error ? error.stack : String(error),
@@ -221,8 +225,8 @@ export class InvoicesController {
 
   /** Marcas de posible duplicado en `pendiente_confirmacion`, cada una con las dos facturas candidatas (FR-020). */
   @Get('duplicates/pending')
-  async duplicadosPendientes(): Promise<MarcaPendienteConFacturas[]> {
-    return this.duplicateMatching.obtenerPendientes();
+  async duplicadosPendientes(@UsuarioId() usuarioId: string): Promise<MarcaPendienteConFacturas[]> {
+    return this.duplicateMatching.obtenerPendientes(usuarioId);
   }
 
   /** Resuelve una marca pendiente: "duplicado" la confirma, "distinto" la descarta — no bloquea el resto de un lote (FR-020/FR-021). */
@@ -230,8 +234,9 @@ export class InvoicesController {
   async resolverDuplicado(
     @Param('id') id: string,
     @Body() body: unknown,
+    @UsuarioId() usuarioId: string,
   ): Promise<MarcaPosibleDuplicado> {
     const { resolucion } = resolverDuplicadoSchema.parse(body);
-    return this.duplicateMatching.resolver(id, resolucion);
+    return this.duplicateMatching.resolver(id, usuarioId, resolucion);
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Captura from './pages/Captura';
 import ConciliacionDian from './pages/ConciliacionDian';
 import Detalle from './pages/Detalle';
@@ -7,7 +7,7 @@ import ReporteAnual from './pages/ReporteAnual';
 import Login from './pages/Login';
 import SelectorTema from './theme/SelectorTema';
 import { useTheme } from './theme/useTheme';
-import { cerrarSesion, haySesionActiva } from './services/auth';
+import { authClient } from './services/auth-client';
 
 type Vista =
   | { tipo: 'listado'; filtrosIniciales?: FiltrosListadoIniciales }
@@ -18,19 +18,15 @@ type Vista =
 
 export default function App() {
   const [vista, setVista] = useState<Vista>({ tipo: 'listado' });
-  const [autenticado, setAutenticado] = useState<boolean | null>(null);
+  const { data: sesion, isPending: sesionPendiente } = authClient.useSession();
   const { preferencia, temaResuelto, setPreferencia } = useTheme();
 
-  useEffect(() => {
-    haySesionActiva().then(setAutenticado);
-  }, []);
-
-  if (autenticado === null) {
+  if (sesionPendiente) {
     return null;
   }
 
-  if (!autenticado) {
-    return <Login onAutenticado={() => setAutenticado(true)} />;
+  if (!sesion) {
+    return <Login />;
   }
 
   return (
@@ -56,7 +52,7 @@ export default function App() {
         <SelectorTema preferencia={preferencia} onCambiar={setPreferencia} />
         <button
           type="button"
-          onClick={() => cerrarSesion().then(() => setAutenticado(false))}
+          onClick={() => authClient.signOut()}
           style={{
             fontFamily: 'var(--font-body)',
             fontSize: 12,

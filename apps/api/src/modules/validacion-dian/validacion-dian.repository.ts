@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectTransaction } from '@nestjs-cls/transactional';
 import type { MetodoValidacionDian, ResultadoValidacionDian, ValidacionDian } from '@myivo/domain';
-import type { ValidacionDian as ValidacionDianPrisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import type { PrismaClient, ValidacionDian as ValidacionDianPrisma } from '@prisma/client';
 
 function aDominio(fila: ValidacionDianPrisma): ValidacionDian {
   return {
@@ -20,21 +20,23 @@ function aDominio(fila: ValidacionDianPrisma): ValidacionDian {
 
 @Injectable()
 export class ValidacionDianRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  // Ver el comentario en factura.repository.ts sobre @InjectTransaction().
+  constructor(@InjectTransaction() private readonly prisma: PrismaClient) {}
 
   /**
    * Toma el snapshot de la Factura en este momento (data-model.md) — nunca
    * datos leídos del portal de la DIAN. Rechaza explícito (FR-005) si la
-   * factura no existe, está eliminada, o no tiene CUFE — nunca crea un
-   * registro sobre un CUFE que no existe.
+   * factura no existe, no es de esta cuenta, está eliminada, o no tiene CUFE
+   * — nunca crea un registro sobre un CUFE que no existe.
    */
   async crear(
     facturaId: string,
+    usuarioId: string,
     metodo: MetodoValidacionDian,
     resultado: ResultadoValidacionDian,
   ): Promise<ValidacionDian> {
     const factura = await this.prisma.factura.findFirst({
-      where: { id: facturaId, eliminadaEn: null },
+      where: { id: facturaId, usuarioId, eliminadaEn: null },
     });
     if (!factura) {
       throw new NotFoundException(`Factura ${facturaId} no encontrada`);
@@ -60,10 +62,10 @@ export class ValidacionDianRepository {
     return aDominio(fila);
   }
 
-  /** Historial completo (FR-010), más reciente primero — array vacío si nunca se validó, no un error. */
-  async listarPorFactura(facturaId: string): Promise<ValidacionDian[]> {
+  /** Historial completo (FR-010), más reciente primero — array vacío si nunca se validó o la factura no es de esta cuenta, no un error. */
+  async listarPorFactura(facturaId: string, usuarioId: string): Promise<ValidacionDian[]> {
     const filas = await this.prisma.validacionDian.findMany({
-      where: { facturaId },
+      where: { facturaId, factura: { usuarioId } },
       orderBy: { creadaEn: 'desc' },
     });
     return filas.map(aDominio);

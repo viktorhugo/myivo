@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   clasificarDocumento,
   evaluarElegibilidad2026,
@@ -11,6 +12,8 @@ import {
   type InvoiceExtractor,
 } from '@myivo/domain';
 import type { Env } from '../../config/env.schema';
+import { aislarPorUsuario, type PrismaTransactionalAdapter } from '../auth/aislar-por-usuario';
+import { UsuarioService } from '../auth/usuario.service';
 import { DuplicateMatchingService } from '../invoices/duplicate-matching.service';
 import { FacturaRepository } from '../invoices/factura.repository';
 import { FileStorageService } from '../invoices/file-storage.service';
@@ -24,25 +27,37 @@ import { esPdf, renderizarPrimeraPagina } from './pdf-decoder';
  * `fallida`, en un reintento — ambas transicionan a `procesando`), invoca el
  * extractor + el decodificador de CUFE, verifica el cuadre monetario, y
  * transiciona el estado según el resultado.
+ *
+ * Corre fire-and-forget (el controller no espera su resultado, T031) — para
+ * cuando termina, la request original que lo despachó (y la transacción de
+ * rls-transaction.interceptor.ts que la envolvía) ya terminó hace rato. Por
+ * eso abre sus propias transacciones con aislarPorUsuario() en vez de
+ * heredar ninguna — specs/006-multi-usuario research.md § 3. En al menos
+ * tres puntos separados, no una sola transacción para todo el método: la
+ * transición a `procesando` debe quedar visible (COMMIT) de inmediato, antes
+ * de la llamada lenta al proveedor de extracción — si todo fuera una sola
+ * transacción, nadie vería "procesando" hasta que la extracción completa
+ * terminara, rompiendo el propósito ya documentado de esa transición
+ * intermedia (ver `procesar()` más abajo).
  */
 @Injectable()
 export class ExtractionProcessor {
   private readonly logger = new Logger(ExtractionProcessor.name);
 
   private readonly versionModelo: string;
-  private readonly identificacionesPropias: readonly string[];
 
   constructor(
     @Inject(INVOICE_EXTRACTOR) private readonly extractor: InvoiceExtractor,
     private readonly facturaRepository: FacturaRepository,
     private readonly fileStorage: FileStorageService,
     private readonly duplicateMatching: DuplicateMatchingService,
+    private readonly usuarioService: UsuarioService,
+    private readonly txHost: TransactionHost<PrismaTransactionalAdapter>,
     configService: ConfigService<Env, true>,
   ) {
     const proveedor = configService.get('EXTRACTION_PROVIDER', { infer: true });
     const modelo = configService.get('EXTRACTION_MODEL', { infer: true });
     this.versionModelo = `${proveedor}:${modelo}`;
-    this.identificacionesPropias = configService.get('MIS_IDENTIFICACIONES', { infer: true });
   }
 
   /**
@@ -55,14 +70,21 @@ export class ExtractionProcessor {
    * el resultado final), repetirla lanzaría por ser `procesando -> procesando`,
    * una transición no definida en la máquina de estados.
    */
-  async procesar(facturaId: string): Promise<void> {
-    const actual = await this.facturaRepository.obtenerPorId(facturaId);
-    if (actual && actual.estado !== 'procesando') {
-      await this.facturaRepository.actualizarEstado(facturaId, 'procesando');
-    }
+  async procesar(facturaId: string, usuarioId: string): Promise<void> {
+    const actual = await aislarPorUsuario(this.txHost, usuarioId, async () => {
+      const factura = await this.facturaRepository.obtenerPorId(facturaId, usuarioId);
+      if (factura && factura.estado !== 'procesando') {
+        await this.facturaRepository.actualizarEstado(facturaId, usuarioId, 'procesando');
+      }
+      return factura;
+    });
 
     try {
-      const factura = actual ?? (await this.facturaRepository.obtenerPorId(facturaId));
+      const factura =
+        actual ??
+        (await aislarPorUsuario(this.txHost, usuarioId, () =>
+          this.facturaRepository.obtenerPorId(facturaId, usuarioId),
+        ));
       if (!factura) {
         throw new Error(`Factura ${facturaId} no encontrada`);
       }
@@ -74,94 +96,104 @@ export class ExtractionProcessor {
       // Ningún adaptador de InvoiceExtractor ni cufe-decoder.ts cambian.
       const imagen = esPdf(original) ? await renderizarPrimeraPagina(original) : original;
 
-      const [datos, cufePorQr] = await Promise.all([
+      const [datos, cufePorQr, identificacionesPropias] = await Promise.all([
         this.extraerYValidar(imagen),
         decodificarCufeDesdeQr(imagen),
+        // Reemplaza MIS_IDENTIFICACIONES: propia de cada cuenta (FR-007).
+        // Fuera de cualquier transacción — User no tiene RLS (data-model.md
+        // § Aislamiento a dos capas, solo Factura y dependientes lo tienen).
+        this.usuarioService.identificacionesDe(usuarioId),
       ]);
 
-      // FR-028/FR-010 (specs/002-rediseno-visual-web US3): una foto con más de
-      // un documento de compra queda marcada, no mezclada — ningún campo
-      // extraído se persiste, el usuario recaptura cada documento por separado.
-      if (datos.múltiplesDocumentos) {
-        await this.facturaRepository.actualizarEstado(facturaId, 'varias_facturas');
-        return;
-      }
+      await aislarPorUsuario(this.txHost, usuarioId, async () => {
+        // FR-028/FR-010 (specs/002-rediseno-visual-web US3): una foto con más de
+        // un documento de compra queda marcada, no mezclada — ningún campo
+        // extraído se persiste, el usuario recaptura cada documento por separado.
+        if (datos.múltiplesDocumentos) {
+          await this.facturaRepository.actualizarEstado(facturaId, usuarioId, 'varias_facturas');
+          return;
+        }
 
-      const { cufe, cufeOrigen } = this.resolverCufe(cufePorQr?.cufe ?? null, datos.cufeImpreso);
+        const { cufe, cufeOrigen } = this.resolverCufe(cufePorQr?.cufe ?? null, datos.cufeImpreso);
 
-      // Clasificación tributaria (US3, constitution Principio IV): reglas
-      // determinísticas del dominio, nunca una opinión del LLM.
-      const tipoDocumento = clasificarDocumento({
-        cufe,
-        comercioNombre: datos.comercioNombre,
-        totalCentavos: datos.totalCentavos,
-        items: datos.items,
-      });
-      const elegibilidad = evaluarElegibilidad2026(
-        { tipoDocumento, adquirienteIdentificacion: datos.adquirienteIdentificacion, medioPago: datos.medioPago },
-        this.identificacionesPropias,
-      );
-
-      await this.facturaRepository.guardarResultadoExtraccion(
-        facturaId,
-        {
-          comercioNombre: datos.comercioNombre,
-          comercioNIT: datos.comercioNIT,
-          fechaHoraCompra: datos.fechaHoraCompra ? new Date(datos.fechaHoraCompra) : null,
-          moneda: datos.moneda,
-          subtotalCentavos: datos.subtotalCentavos,
-          ivaPorTarifa: datos.ivaPorTarifa,
-          impuestoConsumoCentavos: datos.impuestoConsumoCentavos,
-          propinaCentavos: datos.propinaCentavos,
-          totalCentavos: datos.totalCentavos,
-          medioPago: datos.medioPago,
-          adquirienteNombre: datos.adquirienteNombre,
-          adquirienteIdentificacion: datos.adquirienteIdentificacion,
+        // Clasificación tributaria (US3, constitution Principio IV): reglas
+        // determinísticas del dominio, nunca una opinión del LLM.
+        const tipoDocumento = clasificarDocumento({
           cufe,
-          cufeOrigen,
-          confianzaCampos: datos.confianzaCampos,
-          tipoDocumento,
-          elegibilidadTributaria: elegibilidad.elegible,
-          elegibilidadMotivo: elegibilidad.motivo,
-        },
-        datos.items.map((item) => ({
-          descripcion: item.descripcion,
-          cantidad: item.cantidad,
-          valorUnitarioCentavos: item.valorUnitarioCentavos,
-          valorTotalCentavos: item.valorTotalCentavos,
-          nivelConfianza: item.confianza,
-        })),
-      );
-
-      await this.facturaRepository.registrarExtraccionCruda(facturaId, {
-        jsonCrudo: datos,
-        versionPrompt: VERSION_PROMPT_EXTRACCION,
-        versionModelo: this.versionModelo,
-      });
-
-      const necesitaRevision = this.necesitaRevision(datos, cufeOrigen);
-      await this.facturaRepository.actualizarEstado(
-        facturaId,
-        necesitaRevision ? 'necesita_revisión' : 'extraída',
-      );
-
-      // Ortogonal a Factura.estado (data-model.md, US5): un fallo aquí nunca
-      // debe tumbar una extracción que sí funcionó (FR-021 — no bloquea el
-      // resto de un lote), por eso tiene su propio try/catch aparte.
-      try {
-        await this.duplicateMatching.detectarYRegistrar(facturaId);
-      } catch (errorDuplicados) {
-        this.logger.error(
-          `Detección de duplicados falló para factura ${facturaId}`,
-          errorDuplicados instanceof Error ? errorDuplicados.stack : String(errorDuplicados),
+          comercioNombre: datos.comercioNombre,
+          totalCentavos: datos.totalCentavos,
+          items: datos.items,
+        });
+        const elegibilidad = evaluarElegibilidad2026(
+          { tipoDocumento, adquirienteIdentificacion: datos.adquirienteIdentificacion, medioPago: datos.medioPago },
+          identificacionesPropias,
         );
-      }
+
+        await this.facturaRepository.guardarResultadoExtraccion(
+          facturaId,
+          usuarioId,
+          {
+            comercioNombre: datos.comercioNombre,
+            comercioNIT: datos.comercioNIT,
+            fechaHoraCompra: datos.fechaHoraCompra ? new Date(datos.fechaHoraCompra) : null,
+            moneda: datos.moneda,
+            subtotalCentavos: datos.subtotalCentavos,
+            ivaPorTarifa: datos.ivaPorTarifa,
+            impuestoConsumoCentavos: datos.impuestoConsumoCentavos,
+            propinaCentavos: datos.propinaCentavos,
+            totalCentavos: datos.totalCentavos,
+            medioPago: datos.medioPago,
+            adquirienteNombre: datos.adquirienteNombre,
+            adquirienteIdentificacion: datos.adquirienteIdentificacion,
+            cufe,
+            cufeOrigen,
+            confianzaCampos: datos.confianzaCampos,
+            tipoDocumento,
+            elegibilidadTributaria: elegibilidad.elegible,
+            elegibilidadMotivo: elegibilidad.motivo,
+          },
+          datos.items.map((item) => ({
+            descripcion: item.descripcion,
+            cantidad: item.cantidad,
+            valorUnitarioCentavos: item.valorUnitarioCentavos,
+            valorTotalCentavos: item.valorTotalCentavos,
+            nivelConfianza: item.confianza,
+          })),
+        );
+
+        await this.facturaRepository.registrarExtraccionCruda(facturaId, {
+          jsonCrudo: datos,
+          versionPrompt: VERSION_PROMPT_EXTRACCION,
+          versionModelo: this.versionModelo,
+        });
+
+        const necesitaRevision = this.necesitaRevision(datos, cufeOrigen);
+        await this.facturaRepository.actualizarEstado(
+          facturaId,
+          usuarioId,
+          necesitaRevision ? 'necesita_revisión' : 'extraída',
+        );
+
+        // Ortogonal a Factura.estado (data-model.md, US5): un fallo aquí nunca
+        // debe tumbar una extracción que sí funcionó (FR-021 — no bloquea el
+        // resto de un lote), por eso tiene su propio try/catch aparte.
+        try {
+          await this.duplicateMatching.detectarYRegistrar(facturaId, usuarioId);
+        } catch (errorDuplicados) {
+          this.logger.error(
+            `Detección de duplicados falló para factura ${facturaId}`,
+            errorDuplicados instanceof Error ? errorDuplicados.stack : String(errorDuplicados),
+          );
+        }
+      });
     } catch (error) {
       this.logger.error(
         `Extracción fallida para factura ${facturaId}`,
         error instanceof Error ? error.stack : String(error),
       );
-      await this.facturaRepository.actualizarEstado(facturaId, 'fallida');
+      await aislarPorUsuario(this.txHost, usuarioId, () =>
+        this.facturaRepository.actualizarEstado(facturaId, usuarioId, 'fallida'),
+      );
     }
   }
 

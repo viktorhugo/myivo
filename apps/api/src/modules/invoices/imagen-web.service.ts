@@ -37,6 +37,7 @@ export class ImagenWebService {
 
   async obtenerParaNavegador(
     facturaId: string,
+    usuarioId: string,
     rutaOriginal: string,
     derivados: readonly ArchivoDerivado[],
   ): Promise<ImagenServible> {
@@ -64,7 +65,7 @@ export class ImagenWebService {
     );
 
     try {
-      await this.facturaRepository.registrarDerivado(facturaId, {
+      await this.facturaRepository.registrarDerivado(facturaId, usuarioId, {
         ruta,
         tipoTransformacion: TIPO_TRANSFORMACION_WEB,
         creadoEn: new Date(),

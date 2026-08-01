@@ -5,7 +5,16 @@ import { z } from 'zod';
  * proveedor nuevo implica: un valor aquí, su API key abajo, y una entrada en
  * `API_KEY_POR_PROVEEDOR` — el resto de la validación es genérico.
  */
-export const extractionProviderSchema = z.enum(['claude', 'openai', 'gemini', 'zai', 'qwen', 'kimi']);
+export const extractionProviderSchema = z.enum([
+  'claude',
+  'openai',
+  'gemini',
+  'zai',
+  'qwen',
+  'kimi',
+  'deepseek',
+  'openrouter',
+]);
 
 export type ExtractionProvider = z.infer<typeof extractionProviderSchema>;
 
@@ -16,32 +25,40 @@ const API_KEY_POR_PROVEEDOR = {
   zai: 'ZAI_API_KEY',
   qwen: 'QWEN_API_KEY',
   kimi: 'KIMI_API_KEY',
+  // La API pública de DeepSeek todavía es solo texto (jul-2026) — su visión
+  // está en pruebas gray-scale, sin API general. Preset ya cableado en
+  // openai-compatible-invoice-extractor.adapter.ts (misma forma que
+  // zai/qwen/kimi) pero extraction.module.ts la rechaza explícitamente
+  // hasta que soporte imágenes — ver el comentario ahí para reactivarla.
+  deepseek: 'DEEPSEEK_API_KEY',
+  // Agregador (research por pedido del usuario, jul-2026): una sola cuenta
+  // da acceso a muchos modelos abiertos con visión (Qwen3-VL, GLM, Llama,
+  // etc.) vía API compatible con OpenAI — EXTRACTION_MODEL elige cuál, p.
+  // ej. "qwen/qwen3.7-flash" (confirmado en openrouter.ai/api/v1/models).
+  openrouter: 'OPENROUTER_API_KEY',
 } as const satisfies Record<ExtractionProvider, string>;
 
 const baseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().url(),
-  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET debe tener al menos 32 caracteres'),
-  AUTH_USERNAME: z.string().min(1),
-  AUTH_PASSWORD_HASH: z
-    .string()
-    .min(1, 'Debe ser un hash Argon2, nunca la contraseña en texto plano'),
   IMAGE_STORAGE_PATH: z.string().min(1).default('./data/invoices'),
 
-  // Número(s) de identificación del usuario (cédula y/o NIT), separados por
-  // coma — contra esto se compara `adquirienteIdentificacion` para calcular
-  // elegibilidad tributaria (FR-015, spec.md § Assumptions). Requerido y sin
-  // default: sin esto, todo documento sería "no elegible" en silencio.
-  MIS_IDENTIFICACIONES: z
-    .string()
-    .min(1, 'Configura al menos tu cédula o NIT — sin esto ningún documento puede ser elegible')
-    .transform((valor) =>
-      valor
-        .split(',')
-        .map((identificacion) => identificacion.trim())
-        .filter((identificacion) => identificacion.length > 0),
-    ),
+  // specs/006-multi-usuario/research.md § 1 — Better Auth. Reemplaza
+  // SESSION_SECRET/AUTH_USERNAME/AUTH_PASSWORD_HASH: ya no hay una sola
+  // cuenta fija, cualquiera se registra (FR-001).
+  BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET debe tener al menos 32 caracteres'),
+  BETTER_AUTH_URL: z.string().url(),
+  // Origen exacto (protocolo+host+puerto) desde donde el navegador carga el
+  // frontend — Better Auth rechaza por CSRF cualquier request cuyo header
+  // Origin no esté en esta lista, sin importar que el proxy de Vite/Nginx
+  // reenvíe la petición: el navegador siempre manda el Origin real de la
+  // página, no el del proxy.
+  WEB_ORIGIN: z.string().url(),
+
+  // research.md § 2 — Resend, para el correo de verificación (FR-002).
+  RESEND_API_KEY: z.string().min(1),
+  EMAIL_FROM: z.string().min(1, 'Remitente del correo de verificación, ej. "MyIvo <no-reply@tu-dominio.com>"'),
 
   EXTRACTION_PROVIDER: extractionProviderSchema.default('claude'),
   EXTRACTION_MODEL: z.string().min(1).default('claude-sonnet-5'),
@@ -55,6 +72,8 @@ const baseEnvSchema = z.object({
   ZAI_API_KEY: z.string().min(1).optional(),
   QWEN_API_KEY: z.string().min(1).optional(),
   KIMI_API_KEY: z.string().min(1).optional(),
+  DEEPSEEK_API_KEY: z.string().min(1).optional(),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
 });
 
 export const envSchema = baseEnvSchema.superRefine((config, ctx) => {

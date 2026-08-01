@@ -7,7 +7,7 @@
     "allowSyntheticDefaultImports": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "types": ["node", "express", "express-session", "multer", "jest"]
+    "types": ["node", "express", "multer", "jest"]
   },
   "include": ["src"]
 }
