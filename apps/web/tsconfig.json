@@ -6,6 +6,13 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true,
+    // Sin esto, hereda declaration:true de tsconfig.base.json — un SPA
+    // compilado con Vite nunca publica .d.ts, pero con declaration:true
+    // igual TypeScript exige que cada tipo exportado sea "nombrable" en un
+    // archivo de declaración, y el cliente de Better Auth con varios
+    // plugins (passkey + two-factor) no lo es (better-auth/better-auth#5666,
+    // problema conocido y documentado del lado de la librería).
+    "declaration": false,
     "isolatedModules": true,
     "types": ["vite/client"]
   },

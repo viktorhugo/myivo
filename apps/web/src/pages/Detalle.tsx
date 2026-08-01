@@ -357,22 +357,31 @@ function CeldaCampo({
 }
 
 /**
- * Menú "···" con la única acción disponible por ahora (eliminar), con
- * confirmación explícita antes de ejecutar (spec.md US2, Acceptance Scenario
- * 3) — sin esto sería demasiado fácil perder de vista una factura por error.
+ * Menú "···" con las acciones disponibles — reprocesar (solo si el estado lo
+ * permite) y eliminar, con confirmación explícita antes de esta última
+ * (spec.md US2, Acceptance Scenario 3) — sin esto sería demasiado fácil
+ * perder de vista una factura por error. Reprocesar no necesita esa misma
+ * confirmación: es una acción reversible, no destructiva.
  */
 function MenuAcciones({
   tema,
+  onReprocesar,
+  reprocesando,
+  mostrarReprocesar,
   onEliminar,
   eliminando,
 }: {
   tema: TemaResuelto;
+  onReprocesar: () => void;
+  reprocesando: boolean;
+  mostrarReprocesar: boolean;
   onEliminar: () => void;
   eliminando: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const IconoMenu = obtenerIcono('menu', tema);
+  const IconoReprocesar = obtenerIcono('reprocesar', tema);
   const IconoEliminar = obtenerIcono('eliminar', tema);
 
   function cerrar() {
@@ -399,14 +408,30 @@ function MenuAcciones({
           <div className="card menu-contextual">
             <MarcasEsquina />
             {!confirmando ? (
-              <button
-                type="button"
-                onClick={() => setConfirmando(true)}
-                className="menu-contextual-item peligro"
-              >
-                <IconoEliminar size={15} />
-                Eliminar factura
-              </button>
+              <>
+                {mostrarReprocesar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      cerrar();
+                      onReprocesar();
+                    }}
+                    disabled={reprocesando}
+                    className="menu-contextual-item"
+                  >
+                    <IconoReprocesar size={15} />
+                    {reprocesando ? 'Reprocesando…' : 'Reprocesar'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setConfirmando(true)}
+                  className="menu-contextual-item peligro"
+                >
+                  <IconoEliminar size={15} />
+                  Eliminar factura
+                </button>
+              </>
             ) : (
               <div style={{ padding: '10px 14px', fontFamily: 'var(--font-body)' }}>
                 <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--color-text-muted)' }}>
@@ -707,7 +732,18 @@ export default function Detalle({
             {formatearFecha(factura.fechaHoraCompra)} · {ETIQUETA_ESTADO[factura.estado]}
           </p>
         </div>
-        <MenuAcciones tema={tema} onEliminar={manejarEliminar} eliminando={eliminando} />
+        <MenuAcciones
+          tema={tema}
+          onReprocesar={manejarReprocesar}
+          reprocesando={reprocesando}
+          mostrarReprocesar={
+            factura.estado === 'fallida' ||
+            factura.estado === 'necesita_revisión' ||
+            factura.estado === 'extraída'
+          }
+          onEliminar={manejarEliminar}
+          eliminando={eliminando}
+        />
       </header>
 
       {error && <p role="alert">{error}</p>}
@@ -776,27 +812,6 @@ export default function Detalle({
             </div>
           </div>
         </div>
-      )}
-
-      {/* `fallida` es el único caso de "algo salió mal"; en `necesita_revisión` y
-          `extraída` la extracción ya funcionó — se ofrece reprocesar igual, por
-          si algo externo a la extracción cambió (p. ej. la identificación
-          propia configurada, specs/005-captura-pdf-facturas), sin necesitar
-          borrar y resubir el archivo. Mismo botón, etiqueta genérica. */}
-      {(factura.estado === 'fallida' ||
-        factura.estado === 'necesita_revisión' ||
-        factura.estado === 'extraída') && (
-        <p>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={manejarReprocesar}
-            disabled={reprocesando}
-            style={{ padding: '8px 14px' }}
-          >
-            {reprocesando ? 'Reprocesando…' : 'Reprocesar'}
-          </button>
-        </p>
       )}
 
       {factura.cufe && <SeccionValidacionDian facturaId={factura.id} cufe={factura.cufe} />}

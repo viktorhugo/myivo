@@ -60,6 +60,18 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.string().min(1, 'Remitente del correo de verificación, ej. "MyIvo <no-reply@tu-dominio.com>"'),
 
+  // Login social (opcional, por proveedor — auth.ts solo activa el que tenga
+  // ambas variables presentes). URL de redirección a registrar en cada
+  // consola: {BETTER_AUTH_URL}/callback/{proveedor} — con basePath: '/auth'
+  // (auth.ts), NO es /api/auth/callback/... como muestran los ejemplos
+  // genéricos de la documentación.
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  MICROSOFT_CLIENT_ID: z.string().min(1).optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1).optional(),
+  GITHUB_CLIENT_ID: z.string().min(1).optional(),
+  GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+
   EXTRACTION_PROVIDER: extractionProviderSchema.default('claude'),
   EXTRACTION_MODEL: z.string().min(1).default('claude-sonnet-5'),
 

@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type CSSProperties, type FormEvent } from 'react';
+import QRCode from 'react-qr-code';
 import { authClient } from '../services/auth-client';
 import { actualizarIdentificaciones, obtenerIdentificaciones } from '../services/cuenta';
 import { obtenerIcono } from '../theme/iconos';
@@ -103,6 +104,28 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
   const [errorIdentificaciones, setErrorIdentificaciones] = useState<string | null>(null);
   const [identificacionesGuardadas, setIdentificacionesGuardadas] = useState(false);
 
+  const { data: sesion } = authClient.useSession();
+  const dosPasosActivo = sesion?.user.twoFactorEnabled ?? false;
+
+  // Flujo de activación de 2FA: contraseña → QR + códigos de respaldo → código de verificación.
+  // Mientras no se confirme el código, el servidor NO marca twoFactorEnabled (better-auth, two-factor/index.mjs).
+  const [contraseñaActivar2FA, setContraseñaActivar2FA] = useState('');
+  const [confirmandoActivacion2FA, setConfirmandoActivacion2FA] = useState(false);
+  const [totpURI, setTotpURI] = useState<string | null>(null);
+  const [codigosRespaldo, setCodigosRespaldo] = useState<string[] | null>(null);
+  const [codigoVerificacion2FA, setCodigoVerificacion2FA] = useState('');
+  const [procesando2FA, setProcesando2FA] = useState(false);
+  const [error2FA, setError2FA] = useState<string | null>(null);
+
+  const [mostrandoDesactivar2FA, setMostrandoDesactivar2FA] = useState(false);
+  const [contraseñaDesactivar2FA, setContraseñaDesactivar2FA] = useState('');
+
+  const { data: passkeys, isPending: cargandoPasskeys } = authClient.useListPasskeys();
+  const [nombrePasskeyNueva, setNombrePasskeyNueva] = useState('');
+  const [agregandoPasskey, setAgregandoPasskey] = useState(false);
+  const [errorPasskey, setErrorPasskey] = useState<string | null>(null);
+  const [eliminandoPasskeyId, setEliminandoPasskeyId] = useState<string | null>(null);
+
   useEffect(() => {
     obtenerIdentificaciones()
       .then((identificaciones) => setIdentificacionesTexto(identificaciones.join(', ')))
@@ -157,7 +180,77 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
     }
   }
 
+  async function manejarActivar2FA(event: FormEvent) {
+    event.preventDefault();
+    setProcesando2FA(true);
+    setError2FA(null);
+    const { data, error } = await authClient.twoFactor.enable({ password: contraseñaActivar2FA });
+    if (error) {
+      setError2FA(error.message ?? 'No se pudo activar la verificación en dos pasos');
+    } else {
+      setTotpURI(data.totpURI);
+      setCodigosRespaldo(data.backupCodes);
+      setConfirmandoActivacion2FA(true);
+      setContraseñaActivar2FA('');
+    }
+    setProcesando2FA(false);
+  }
+
+  async function manejarConfirmarCodigo2FA(event: FormEvent) {
+    event.preventDefault();
+    setProcesando2FA(true);
+    setError2FA(null);
+    const { error } = await authClient.twoFactor.verifyTotp({ code: codigoVerificacion2FA });
+    if (error) {
+      setError2FA(error.message ?? 'Código inválido');
+    } else {
+      setConfirmandoActivacion2FA(false);
+      setTotpURI(null);
+      setCodigosRespaldo(null);
+      setCodigoVerificacion2FA('');
+    }
+    setProcesando2FA(false);
+  }
+
+  async function manejarDesactivar2FA(event: FormEvent) {
+    event.preventDefault();
+    setProcesando2FA(true);
+    setError2FA(null);
+    const { error } = await authClient.twoFactor.disable({ password: contraseñaDesactivar2FA });
+    if (error) {
+      setError2FA(error.message ?? 'No se pudo desactivar la verificación en dos pasos');
+    } else {
+      setMostrandoDesactivar2FA(false);
+      setContraseñaDesactivar2FA('');
+    }
+    setProcesando2FA(false);
+  }
+
+  async function manejarAgregarPasskey(event: FormEvent) {
+    event.preventDefault();
+    setAgregandoPasskey(true);
+    setErrorPasskey(null);
+    const { error } = await authClient.passkey.addPasskey(nombrePasskeyNueva ? { name: nombrePasskeyNueva } : {});
+    if (error) {
+      setErrorPasskey(error.message ?? 'No se pudo agregar el passkey');
+    } else {
+      setNombrePasskeyNueva('');
+    }
+    setAgregandoPasskey(false);
+  }
+
+  async function manejarEliminarPasskey(id: string) {
+    setEliminandoPasskeyId(id);
+    setErrorPasskey(null);
+    const { error } = await authClient.passkey.deletePasskey({ id });
+    if (error) {
+      setErrorPasskey(error.message ?? 'No se pudo eliminar el passkey');
+    }
+    setEliminandoPasskeyId(null);
+  }
+
   const IconoVolver = obtenerIcono('volver', tema);
+  const IconoEliminar = obtenerIcono('eliminar', tema);
   const grosorTrazo = tema === 'nocturne' ? 1.7 : 1.5;
 
   return (
@@ -264,6 +357,211 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           {cambiandoContraseña ? 'Cambiando…' : 'Cambiar contraseña'}
         </button>
       </form>
+
+      <section className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+        <MarcasEsquina />
+        <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+          Verificación en dos pasos
+        </p>
+        <p style={{ margin: '4px 0 10px', fontSize: 12, color: 'var(--color-text-muted)', textWrap: 'pretty' }}>
+          Pide un código de una app autenticadora (Google Authenticator, Authy, etc.) además de tu
+          contraseña al iniciar sesión.
+        </p>
+
+        {confirmandoActivacion2FA && totpURI && codigosRespaldo ? (
+          <>
+            <p style={{ margin: '0 0 8px', fontSize: 12 }}>
+              Escanea este código con tu app autenticadora:
+            </p>
+            <div style={{ background: '#fff', padding: 12, display: 'inline-block', borderRadius: 4 }}>
+              <QRCode value={totpURI} size={160} />
+            </div>
+            <p style={{ margin: '12px 0 4px', fontSize: 12 }}>
+              Guarda estos códigos de respaldo en un lugar seguro — cada uno sirve una sola vez si
+              pierdes acceso a tu app autenticadora, y no se vuelven a mostrar:
+            </p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 4,
+                fontFamily: 'monospace',
+                fontSize: 13,
+                border: '1px solid var(--color-border)',
+                padding: 10,
+                borderRadius: 4,
+              }}
+            >
+              {codigosRespaldo.map((codigo) => (
+                <span key={codigo}>{codigo}</span>
+              ))}
+            </div>
+
+            <form onSubmit={manejarConfirmarCodigo2FA} style={{ marginTop: 12 }}>
+              <label htmlFor="codigo-verificacion-2fa" style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                Código de 6 dígitos de tu app autenticadora
+              </label>
+              <input
+                id="codigo-verificacion-2fa"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={codigoVerificacion2FA}
+                onChange={(e) => setCodigoVerificacion2FA(e.target.value)}
+                required
+                style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, fontFamily: 'var(--font-body)' }}
+              />
+              {error2FA && (
+                <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+                  {error2FA}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={procesando2FA}
+                style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+              >
+                {procesando2FA ? 'Confirmando…' : 'Confirmar y activar'}
+              </button>
+            </form>
+          </>
+        ) : dosPasosActivo ? (
+          <>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--color-estado-extraida-fg)' }}>Activa.</p>
+            {mostrandoDesactivar2FA ? (
+              <form onSubmit={manejarDesactivar2FA} style={{ marginTop: 10 }}>
+                <CampoContraseña
+                  tema={tema}
+                  etiqueta="Confirma tu contraseña para desactivarla"
+                  valor={contraseñaDesactivar2FA}
+                  onCambiar={setContraseñaDesactivar2FA}
+                  autoComplete="current-password"
+                />
+                {error2FA && (
+                  <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+                    {error2FA}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={procesando2FA}
+                  style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+                >
+                  {procesando2FA ? 'Desactivando…' : 'Desactivar'}
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrandoDesactivar2FA(true);
+                  setError2FA(null);
+                }}
+                style={{ display: 'block', marginTop: 10, padding: '8px 14px' }}
+              >
+                Desactivar
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>Desactivada.</p>
+            <form onSubmit={manejarActivar2FA} style={{ marginTop: 10 }}>
+              <CampoContraseña
+                tema={tema}
+                etiqueta="Tu contraseña (déjalo vacío si tu cuenta es solo de Google/Microsoft/GitHub)"
+                valor={contraseñaActivar2FA}
+                onCambiar={setContraseñaActivar2FA}
+                autoComplete="current-password"
+              />
+              {error2FA && (
+                <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+                  {error2FA}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={procesando2FA}
+                style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+              >
+                {procesando2FA ? 'Activando…' : 'Activar'}
+              </button>
+            </form>
+          </>
+        )}
+      </section>
+
+      <section className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+        <MarcasEsquina />
+        <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+          Passkeys
+        </p>
+        <p style={{ margin: '4px 0 10px', fontSize: 12, color: 'var(--color-text-muted)', textWrap: 'pretty' }}>
+          Inicia sesión con tu huella, rostro o PIN del dispositivo, sin escribir la contraseña.
+        </p>
+
+        {cargandoPasskeys ? (
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>Cargando…</p>
+        ) : passkeys && passkeys.length > 0 ? (
+          <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
+            {passkeys.map((passkey) => (
+              <li
+                key={passkey.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 0',
+                  borderBottom: '1px solid var(--color-border)',
+                }}
+              >
+                <span style={{ fontSize: 13 }}>{passkey.name || 'Passkey sin nombre'}</span>
+                <button
+                  type="button"
+                  onClick={() => manejarEliminarPasskey(passkey.id)}
+                  disabled={eliminandoPasskeyId === passkey.id}
+                  aria-label={`Eliminar ${passkey.name || 'passkey sin nombre'}`}
+                  style={botonIcono}
+                >
+                  <IconoEliminar size={16} strokeWidth={1.5} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--color-text-muted)' }}>
+            Todavía no tienes passkeys registrados.
+          </p>
+        )}
+
+        <form onSubmit={manejarAgregarPasskey}>
+          <label htmlFor="nombre-passkey-nueva" style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
+            Nombre (opcional, para identificarlo — p. ej. "Mi celular")
+          </label>
+          <input
+            id="nombre-passkey-nueva"
+            type="text"
+            value={nombrePasskeyNueva}
+            onChange={(e) => setNombrePasskeyNueva(e.target.value)}
+            style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, fontFamily: 'var(--font-body)' }}
+          />
+          {errorPasskey && (
+            <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+              {errorPasskey}
+            </p>
+          )}
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={agregandoPasskey}
+            style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+          >
+            {agregandoPasskey ? 'Agregando…' : 'Agregar passkey'}
+          </button>
+        </form>
+      </section>
     </section>
   );
 }

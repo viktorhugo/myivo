@@ -60,9 +60,14 @@ model User {
   /// Reemplaza la variable de entorno MIS_IDENTIFICACIONES (FR-007) — propia de cada cuenta. `input: false` en la config de Better Auth: nunca se fija en el registro, solo vía PUT /cuenta/identificaciones (US2).
   identificacionesTributarias String[] @default([])
 
-  sessions Session[]
-  accounts Account[]
-  facturas Factura[]
+  /// Campo propio del plugin two-factor (auth.ts) — Better Auth lo agrega y lo lee directamente, no se toca a mano.
+  twoFactorEnabled Boolean? @default(false)
+
+  sessions   Session[]
+  accounts   Account[]
+  passkeys   Passkey[]
+  twoFactors TwoFactor[]
+  facturas   Factura[]
 
   @@unique([email])
   @@map("usuarios")
@@ -114,6 +119,42 @@ model Verification {
   @@map("verificaciones")
 }
 
+// Plugin passkey (auth.ts) — @better-auth/passkey. Campos y nombre de modelo
+// exigidos tal cual por su adaptador (prisma.passkey.*).
+model Passkey {
+  id           String    @id @default(uuid())
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime? @default(now())
+  aaguid       String?
+
+  @@index([userId])
+  @@index([credentialID])
+  @@map("claves_acceso")
+}
+
+// Plugin two-factor (auth.ts) — better-auth/plugins/two-factor. Nombre de
+// modelo por defecto exigido por el plugin (prisma.twoFactor.*, twoFactorTable).
+model TwoFactor {
+  id                      String    @id @default(uuid())
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret                  String
+  backupCodes             String
+  verified                Boolean
+  failedVerificationCount Int?
+  lockedUntil             DateTime?
+
+  @@map("segundo_factor")
+}
+
 // Campos de captura (US1) + extracción (US2) + clasificación tributaria
 // (US3). El soft-delete (eliminadaEn) se agrega en specs/002-rediseno-visual-web
 // User Story 2 — ver data-model.md de esa feature.
@@ -124,9 +165,9 @@ model Factura {
 
   /// Dueño de la factura — quien la capturó (specs/006-multi-usuario, FR-002). Obligatoria desde la migración usuario_id_obligatorio (tras scripts/migrar-datos-existentes.ts, que asignó dueño a las facturas ya existentes). Sin onDelete: Cascade a propósito (constitution Principio I) — eliminar una cuenta con facturas queda fuera de alcance hasta decidir explícitamente qué pasa con la evidencia.
   usuarioId String
-  usuario   User  @relation(fields: [usuarioId], references: [id])
+  usuario   User   @relation(fields: [usuarioId], references: [id])
   /// Array de { ruta, tipoTransformacion, creadoEn } — ver ArchivoDerivado en el dominio.
-  derivados          Json          @default("[]")
+  derivados Json   @default("[]")
 
   comercioNombre  String?
   comercioNIT     String?
@@ -135,7 +176,7 @@ model Factura {
 
   subtotalCentavos        Int?
   /// Array de { tarifa, valorCentavos } — ver IvaTarifa en el dominio.
-  ivaPorTarifa            Json    @default("[]")
+  ivaPorTarifa            Json @default("[]")
   impuestoConsumoCentavos Int?
   propinaCentavos         Int?
   totalCentavos           Int?
@@ -244,7 +285,7 @@ model MarcaPosibleDuplicado {
   facturaCandidata   Factura @relation("FacturaCandidata", fields: [facturaCandidataId], references: [id], onDelete: Cascade)
 
   metodoDeteccion MetodoDeteccionDuplicado
-  estado          EstadoMarcaDuplicado @default(pendiente_confirmacion)
+  estado          EstadoMarcaDuplicado     @default(pendiente_confirmacion)
   resueltoEn      DateTime?
 
   creadaEn DateTime @default(now())

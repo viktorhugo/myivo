@@ -17,6 +17,7 @@ import {
   ChartColumn,
   Eye,
   EyeOff,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -38,6 +39,7 @@ import {
   ChartBarIcon,
   EyeIcon,
   EyeSlashIcon,
+  ArrowsClockwiseIcon,
   type Icon as IconoPhosphor,
 } from '@phosphor-icons/react';
 import type { TemaResuelto } from './useTheme';
@@ -60,7 +62,8 @@ export type NombreIcono =
   | 'factura'
   | 'reporte'
   | 'mostrar-contraseña'
-  | 'ocultar-contraseña';
+  | 'ocultar-contraseña'
+  | 'reprocesar';
 
 const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
   volver: ArrowLeft,
@@ -81,6 +84,7 @@ const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
   reporte: ChartColumn,
   'mostrar-contraseña': Eye,
   'ocultar-contraseña': EyeOff,
+  reprocesar: RefreshCw,
 };
 
 const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
@@ -102,6 +106,7 @@ const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
   reporte: ChartBarIcon,
   'mostrar-contraseña': EyeIcon,
   'ocultar-contraseña': EyeSlashIcon,
+  reprocesar: ArrowsClockwiseIcon,
 };
 
 /** Trazo delgado estilo Lucide en Industry, estilo Phosphor en Nocturne (research.md § 6). */
