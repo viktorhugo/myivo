@@ -1,7 +1,8 @@
-import { useEffect, useId, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import QRCode from 'react-qr-code';
 import { authClient } from '../services/auth-client';
 import { actualizarIdentificaciones, obtenerIdentificaciones } from '../services/cuenta';
+import CampoContraseña from '../theme/CampoContraseña';
 import { obtenerIcono } from '../theme/iconos';
 import MarcasEsquina from '../theme/MarcasEsquina';
 import type { TemaResuelto } from '../theme/useTheme';
@@ -12,80 +13,6 @@ function parsearIdentificaciones(texto: string): string[] {
     .split(',')
     .map((identificacion) => identificacion.trim())
     .filter((identificacion) => identificacion.length > 0);
-}
-
-/**
- * Input de contraseña con botón para mostrar/ocultar el valor — patrón de
- * modern-web-guidance § forms (botón `type="button"` con `aria-pressed`,
- * warning para lector de pantalla antes de revelar, nunca reemplaza el
- * `<label>` con `placeholder`).
- */
-function CampoContraseña({
-  tema,
-  etiqueta,
-  valor,
-  onCambiar,
-  autoComplete,
-  minLength,
-  descripcion,
-  ...resto
-}: {
-  tema: TemaResuelto;
-  etiqueta: string;
-  valor: string;
-  onCambiar: (valor: string) => void;
-  autoComplete: 'current-password' | 'new-password';
-  minLength?: number;
-  descripcion?: string;
-} & Pick<React.InputHTMLAttributes<HTMLInputElement>, 'onBlur'>) {
-  const [visible, setVisible] = useState(false);
-  const id = useId();
-  const idDescripcion = descripcion ? `${id}-hint` : undefined;
-  const idAdvertencia = `${id}-warning`;
-  const IconoOjo = obtenerIcono(visible ? 'ocultar-contraseña' : 'mostrar-contraseña', tema);
-
-  return (
-    <div style={{ marginTop: 10 }}>
-      {/* label con htmlFor explícito, no envolviendo el botón: un botón
-          interactivo anidado dentro de un <label> implícito puede competir
-          con el paso de foco/clic del label hacia su control asociado. */}
-      <label htmlFor={id} style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
-        {etiqueta}
-      </label>
-      <span id={idAdvertencia} className="visually-hidden">
-        Al mostrarla, tu contraseña queda visible en pantalla.
-      </span>
-      <span style={{ position: 'relative', display: 'block', marginTop: 4 }}>
-        <input
-          id={id}
-          type={visible ? 'text' : 'password'}
-          value={valor}
-          onChange={(e) => onCambiar(e.target.value)}
-          autoComplete={autoComplete}
-          minLength={minLength}
-          required
-          aria-describedby={idDescripcion}
-          style={{ display: 'block', width: '100%', boxSizing: 'border-box', paddingRight: 34 }}
-          {...resto}
-        />
-        <button
-          type="button"
-          onClick={() => setVisible((v) => !v)}
-          aria-pressed={visible}
-          aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-          aria-describedby={visible ? undefined : idAdvertencia}
-          style={botonOjo}
-        >
-          <IconoOjo size={16} strokeWidth={1.5} />
-        </button>
-      </span>
-      {descripcion && (
-        <span id={idDescripcion} style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted-2)', marginTop: 3 }}>
-          {descripcion}
-        </span>
-      )}
-    </div>
-  );
 }
 
 /** US2 (spec.md) — cambiar contraseña propia + configurar la identificación tributaria propia, sin depender de MIS_IDENTIFICACIONES ni de que alguien más edite un archivo. */
@@ -253,25 +180,27 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
   const IconoEliminar = obtenerIcono('eliminar', tema);
   const grosorTrazo = tema === 'nocturne' ? 1.7 : 1.5;
 
+  const colorKicker = tema === 'nocturne' ? 'var(--color-accent)' : 'var(--color-accent-fg-tint)';
+  const colorDescripcion = tema === 'nocturne' ? 'rgba(233, 233, 237, 0.6)' : 'rgba(29, 31, 32, 0.65)';
+
   return (
-    <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)', maxWidth: 480 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+    <section style={{ padding: '8px 20px 40px', fontFamily: 'var(--font-body)', maxWidth: 480 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button type="button" onClick={onVolver} aria-label="Volver al listado" style={botonIcono}>
           <IconoVolver size={20} strokeWidth={grosorTrazo} />
         </button>
-        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 26 }}>
+        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: tema === 'nocturne' ? 21 : 24 }}>
           Mi cuenta
         </h1>
       </header>
 
-      <form onSubmit={manejarGuardarIdentificaciones} className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+      <form onSubmit={manejarGuardarIdentificaciones} className="card" style={{ padding: '14px 16px', marginTop: 18 }}>
         <MarcasEsquina />
-        <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+        <p className="kicker" style={{ margin: 0, color: colorKicker }}>
           Identificación tributaria
         </p>
-        <p style={{ margin: '4px 0 10px', fontSize: 12, color: 'var(--color-text-muted)', textWrap: 'pretty' }}>
-          Tu cédula o NIT — contra esto se compara cada factura para saber si es elegible para la
-          deducción del 1% (FR-015). Puedes poner varias, separadas por coma.
+        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: colorDescripcion, textWrap: 'pretty' }}>
+          Usamos esto para confirmar que las facturas están emitidas a tu nombre.
         </p>
         <input
           type="text"
@@ -279,7 +208,8 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           onChange={(e) => setIdentificacionesTexto(e.target.value)}
           disabled={cargandoIdentificaciones || guardandoIdentificaciones}
           placeholder="1121880039, 16469166"
-          style={{ display: 'block', width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-body)' }}
+          className="campo-texto"
+          style={{ marginTop: 8 }}
         />
         {errorIdentificaciones && (
           <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
@@ -295,43 +225,45 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           type="submit"
           className="btn-primary"
           disabled={cargandoIdentificaciones || guardandoIdentificaciones}
-          style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+          style={{ display: 'block', marginTop: 10, padding: '9px 18px' }}
         >
           {guardandoIdentificaciones ? 'Guardando…' : 'Guardar'}
         </button>
       </form>
 
-      <form onSubmit={manejarCambioContraseña} className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+      <form onSubmit={manejarCambioContraseña} className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
         <MarcasEsquina />
-        <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+        <p className="kicker" style={{ margin: 0, color: colorKicker }}>
           Cambiar contraseña
         </p>
 
-        <CampoContraseña
-          tema={tema}
-          etiqueta="Contraseña actual"
-          valor={contraseñaActual}
-          onCambiar={setContraseñaActual}
-          autoComplete="current-password"
-        />
-        <CampoContraseña
-          tema={tema}
-          etiqueta="Contraseña nueva"
-          valor={contraseñaNueva}
-          onCambiar={setContraseñaNueva}
-          autoComplete="new-password"
-          minLength={8}
-          descripcion="Ocho caracteres o más."
-        />
-        <CampoContraseña
-          tema={tema}
-          etiqueta="Confirmar contraseña nueva"
-          valor={confirmacion}
-          onCambiar={setConfirmacion}
-          autoComplete="new-password"
-          minLength={8}
-          onBlur={() => setConfirmacionTocada(true)}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+          <CampoContraseña
+            tema={tema}
+            etiqueta="Contraseña actual"
+            valor={contraseñaActual}
+            onCambiar={setContraseñaActual}
+            autoComplete="current-password"
+          />
+          <CampoContraseña
+            tema={tema}
+            etiqueta="Contraseña nueva"
+            valor={contraseñaNueva}
+            onCambiar={setContraseñaNueva}
+            autoComplete="new-password"
+            minLength={8}
+            descripcion="Ocho caracteres o más."
+          />
+          <CampoContraseña
+            tema={tema}
+            etiqueta="Confirmar contraseña nueva"
+            valor={confirmacion}
+            onCambiar={setConfirmacion}
+            autoComplete="new-password"
+            minLength={8}
+            onBlur={() => setConfirmacionTocada(true)}
+          />
+        </div>
         {noCoinciden && (
           <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
             Las contraseñas no coinciden.
@@ -352,20 +284,16 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           type="submit"
           className="btn-primary"
           disabled={cambiandoContraseña}
-          style={{ display: 'block', marginTop: 20, padding: '8px 14px' }}
+          style={{ display: 'block', marginTop: 10, padding: '9px 18px' }}
         >
           {cambiandoContraseña ? 'Cambiando…' : 'Cambiar contraseña'}
         </button>
       </form>
 
-      <section className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+      <section className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
         <MarcasEsquina />
-        <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+        <p className="kicker" style={{ margin: 0, color: colorKicker }}>
           Verificación en dos pasos
-        </p>
-        <p style={{ margin: '4px 0 10px', fontSize: 12, color: 'var(--color-text-muted)', textWrap: 'pretty' }}>
-          Pide un código de una app autenticadora (Google Authenticator, Authy, etc.) además de tu
-          contraseña al iniciar sesión.
         </p>
 
         {confirmandoActivacion2FA && totpURI && codigosRespaldo ? (
@@ -428,7 +356,7 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           </>
         ) : dosPasosActivo ? (
           <>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--color-estado-extraida-fg)' }}>Activa.</p>
+            <p style={{ margin: '6px 0 0', fontSize: 13 }}>Activa.</p>
             {mostrandoDesactivar2FA ? (
               <form onSubmit={manejarDesactivar2FA} style={{ marginTop: 10 }}>
                 <CampoContraseña
@@ -446,7 +374,8 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
                 <button
                   type="submit"
                   disabled={procesando2FA}
-                  style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+                  className="btn-secondary"
+                  style={{ display: 'block', marginTop: 10, padding: '9px 18px' }}
                 >
                   {procesando2FA ? 'Desactivando…' : 'Desactivar'}
                 </button>
@@ -458,7 +387,8 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
                   setMostrandoDesactivar2FA(true);
                   setError2FA(null);
                 }}
-                style={{ display: 'block', marginTop: 10, padding: '8px 14px' }}
+                className="btn-secondary"
+                style={{ display: 'block', marginTop: 10, padding: '9px 18px' }}
               >
                 Desactivar
               </button>
@@ -466,7 +396,7 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           </>
         ) : (
           <>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>Desactivada.</p>
+            <p style={{ margin: '6px 0 0', fontSize: 13 }}>Desactivada.</p>
             <form onSubmit={manejarActivar2FA} style={{ marginTop: 10 }}>
               <CampoContraseña
                 tema={tema}
@@ -482,9 +412,9 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
               )}
               <button
                 type="submit"
-                className="btn-primary"
                 disabled={procesando2FA}
-                style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+                className="btn-secondary"
+                style={{ display: 'block', marginTop: 10, padding: '9px 18px' }}
               >
                 {procesando2FA ? 'Activando…' : 'Activar'}
               </button>
@@ -493,19 +423,19 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
         )}
       </section>
 
-      <section className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+      <section className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
         <MarcasEsquina />
-        <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+        <p className="kicker" style={{ margin: 0, color: colorKicker }}>
           Passkeys
         </p>
-        <p style={{ margin: '4px 0 10px', fontSize: 12, color: 'var(--color-text-muted)', textWrap: 'pretty' }}>
-          Inicia sesión con tu huella, rostro o PIN del dispositivo, sin escribir la contraseña.
+        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: colorDescripcion, textWrap: 'pretty' }}>
+          Ingresa sin contraseña usando tu huella, rostro o llave de seguridad.
         </p>
 
         {cargandoPasskeys ? (
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>Cargando…</p>
+          <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-text-muted)' }}>Cargando…</p>
         ) : passkeys && passkeys.length > 0 ? (
-          <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
+          <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
             {passkeys.map((passkey) => (
               <li
                 key={passkey.id}
@@ -514,53 +444,56 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '8px 0',
-                  borderBottom: '1px solid var(--color-border)',
+                  borderTop: tema === 'industry' ? '1px solid rgba(29, 31, 32, 0.1)' : undefined,
+                  background:
+                    tema === 'nocturne'
+                      ? 'linear-gradient(to right, transparent, rgba(233, 233, 237, 0.09) 12px, rgba(233, 233, 237, 0.09) calc(100% - 12px), transparent) no-repeat top / 100% 1px'
+                      : undefined,
                 }}
               >
-                <span style={{ fontSize: 13 }}>{passkey.name || 'Passkey sin nombre'}</span>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{passkey.name || 'Passkey sin nombre'}</span>
                 <button
                   type="button"
                   onClick={() => manejarEliminarPasskey(passkey.id)}
                   disabled={eliminandoPasskeyId === passkey.id}
                   aria-label={`Eliminar ${passkey.name || 'passkey sin nombre'}`}
-                  style={botonIcono}
+                  style={{ ...botonIcono, color: 'var(--color-estado-fallida-fg)' }}
                 >
-                  <IconoEliminar size={16} strokeWidth={1.5} />
+                  <IconoEliminar size={15} strokeWidth={grosorTrazo} />
                 </button>
               </li>
             ))}
           </ul>
         ) : (
-          <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--color-text-muted)' }}>
+          <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-text-muted)' }}>
             Todavía no tienes passkeys registrados.
           </p>
         )}
 
-        <form onSubmit={manejarAgregarPasskey}>
-          <label htmlFor="nombre-passkey-nueva" style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
-            Nombre (opcional, para identificarlo — p. ej. "Mi celular")
-          </label>
+        <form onSubmit={manejarAgregarPasskey} style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <input
-            id="nombre-passkey-nueva"
+            aria-label="Nombre del passkey (opcional)"
             type="text"
             value={nombrePasskeyNueva}
             onChange={(e) => setNombrePasskeyNueva(e.target.value)}
-            style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, fontFamily: 'var(--font-body)' }}
+            placeholder="Nombre (opcional)"
+            className="campo-texto"
+            style={{ flex: 1 }}
           />
-          {errorPasskey && (
-            <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
-              {errorPasskey}
-            </p>
-          )}
           <button
             type="submit"
             className="btn-primary"
             disabled={agregandoPasskey}
-            style={{ display: 'block', marginTop: 12, padding: '8px 14px' }}
+            style={{ padding: '0 14px', fontFamily: 'var(--font-body)', fontSize: 12, letterSpacing: 'normal' }}
           >
-            {agregandoPasskey ? 'Agregando…' : 'Agregar passkey'}
+            {agregandoPasskey ? 'Agregando…' : 'Agregar'}
           </button>
         </form>
+        {errorPasskey && (
+          <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+            {errorPasskey}
+          </p>
+        )}
       </section>
     </section>
   );
@@ -572,18 +505,4 @@ const botonIcono: CSSProperties = {
   color: 'var(--color-text)',
   cursor: 'pointer',
   padding: 4,
-};
-
-const botonOjo: CSSProperties = {
-  position: 'absolute',
-  right: 4,
-  top: '50%',
-  transform: 'translateY(-50%)',
-  background: 'transparent',
-  border: 'none',
-  color: 'var(--color-text-muted)',
-  cursor: 'pointer',
-  padding: 4,
-  display: 'flex',
-  alignItems: 'center',
 };

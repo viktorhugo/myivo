@@ -44,34 +44,28 @@ export default function ConciliacionDian({
   const IconoVolver = obtenerIcono('volver', tema);
   const grosorTrazo = tema === 'nocturne' ? 1.7 : 1.5;
 
+  const colorTexto = tema === 'nocturne' ? 'rgba(233, 233, 237, 0.6)' : 'rgba(29, 31, 32, 0.65)';
+
   return (
-    <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+    <section style={{ padding: '8px 20px 30px', fontFamily: 'var(--font-body)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button type="button" onClick={onVolver} aria-label="Volver al listado" style={botonIcono}>
           <IconoVolver size={20} strokeWidth={grosorTrazo} />
         </button>
-        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 26 }}>
+        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: tema === 'nocturne' ? 21 : 24 }}>
           Conciliar con la DIAN
         </h1>
       </header>
 
-      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', textWrap: 'pretty' }}>
+      <p style={{ fontSize: 13, color: colorTexto, marginTop: 10, textWrap: 'pretty' }}>
         Sube el archivo que descargaste del portal de la DIAN (Facturando Electrónicamente →
         documentos recibidos) para marcar de una sola vez cuáles de tus facturas ya capturadas
         aparecen ahí como válidas.
       </p>
 
-      <div className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+      <div className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
         <MarcasEsquina />
-        <label
-          style={{
-            display: 'block',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--color-text-muted-2)',
-            marginBottom: 6,
-          }}
-        >
+        <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-label)', marginBottom: 5 }}>
           Archivo de la DIAN (.xlsx)
         </label>
         <input
@@ -79,14 +73,14 @@ export default function ConciliacionDian({
           accept=".xlsx"
           onChange={manejarSeleccion}
           disabled={conciliando}
-          style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text)' }}
+          style={{ display: 'block', width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text)' }}
         />
         <button
           type="button"
           onClick={conciliar}
           disabled={!archivo || conciliando}
           className="btn-primary"
-          style={{ display: 'block', marginTop: 12, padding: '8px 14px', opacity: archivo ? 1 : 0.6 }}
+          style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 12, padding: 10, opacity: archivo ? 1 : 0.6 }}
         >
           {conciliando ? 'Conciliando…' : 'Conciliar'}
         </button>
@@ -99,9 +93,9 @@ export default function ConciliacionDian({
       )}
 
       {resumen && (
-        <div className="card" style={{ padding: '14px 16px', marginTop: 12 }}>
+        <div className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
           <MarcasEsquina />
-          <p className="kicker" style={{ margin: 0, color: 'var(--color-accent-fg-tint)' }}>
+          <p className="kicker" style={{ margin: 0, color: tema === 'nocturne' ? 'var(--color-accent)' : 'var(--color-accent-fg-tint)' }}>
             Resultado
           </p>
           <p style={{ margin: '6px 0 0', fontSize: 14 }}>
@@ -109,7 +103,7 @@ export default function ConciliacionDian({
             {resumen.facturasConciliadas === 1 ? '' : 's'} conciliada
             {resumen.facturasConciliadas === 1 ? '' : 's'}
           </p>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-text-muted)' }}>
+          <p style={{ margin: '2px 0 0', fontSize: 13, color: colorTexto }}>
             {resumen.cufesSinCoincidencia} CUFE{resumen.cufesSinCoincidencia === 1 ? '' : 's'} del
             archivo sin ninguna factura capturada correspondiente
           </p>

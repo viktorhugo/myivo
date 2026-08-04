@@ -28,14 +28,16 @@ export default function App() {
   }
 
   if (!sesion) {
-    return <Login />;
+    return <Login tema={temaResuelto} preferencia={preferencia} onCambiarTema={setPreferencia} />;
   }
 
   return (
     /* La barra de chrome (tema + salir) es `sticky`, no `fixed`: así ocupa su
        propio espacio en el flujo y nunca se encima con el encabezado de cada
-       pantalla, sin depender de que el padding del contenedor la compense. */
-    <main>
+       pantalla, sin depender de que el padding del contenedor la compense.
+       max-width/margin: la columna de contenido nunca se estira más allá del
+       ancho del diseño de referencia, incluso en una ventana de escritorio. */
+    <main style={{ maxWidth: 430, margin: '0 auto', position: 'relative' }}>
       <div
         style={{
           position: 'sticky',
@@ -52,22 +54,25 @@ export default function App() {
         }}
       >
         <SelectorTema preferencia={preferencia} onCambiar={setPreferencia} />
-        <button
-          type="button"
-          onClick={() => setVista({ tipo: 'cuenta-propia' })}
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 12,
-            background: 'transparent',
-            color: 'var(--color-text-muted)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-button)',
-            padding: '4px 8px',
-            cursor: 'pointer',
-          }}
-        >
-          Mi cuenta
-        </button>
+        {/* Omitido en la propia pantalla "Mi cuenta" — llevaría ahí mismo. */}
+        {vista.tipo !== 'cuenta-propia' && (
+          <button
+            type="button"
+            onClick={() => setVista({ tipo: 'cuenta-propia' })}
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 12,
+              background: 'transparent',
+              color: 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-button)',
+              padding: '6px 10px',
+              cursor: 'pointer',
+            }}
+          >
+            Mi cuenta
+          </button>
+        )}
         <button
           type="button"
           onClick={() => authClient.signOut()}
@@ -75,10 +80,10 @@ export default function App() {
             fontFamily: 'var(--font-body)',
             fontSize: 12,
             background: 'transparent',
-            color: 'var(--color-text-muted)',
+            color: 'var(--color-text)',
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-button)',
-            padding: '4px 8px',
+            padding: '6px 10px',
             cursor: 'pointer',
           }}
         >

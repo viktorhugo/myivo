@@ -176,7 +176,7 @@ export default function Listado({
   const IconoBuscar = obtenerIcono('buscar', tema);
   const IconoFiltro = obtenerIcono('filtro', tema);
   const IconoCamara = obtenerIcono('camara', tema);
-  const IconoConciliarDian = obtenerIcono('factura', tema);
+  const IconoConciliarDian = obtenerIcono('firma', tema);
   const IconoReporte = obtenerIcono('reporte', tema);
 
   // "Biblioteca vacía" (US4) es distinto de "0 resultados para el filtro
@@ -197,7 +197,7 @@ export default function Listado({
   return (
     <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)' }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 26, flex: 1 }}>
+        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: tema === 'nocturne' ? 21 : 26, flex: 1 }}>
           Mis facturas
         </h1>
         {!bibliotecaVacia && (
@@ -209,7 +209,7 @@ export default function Listado({
               aria-pressed={busquedaVisible}
               onClick={() => setBusquedaVisible((visible) => !visible)}
             >
-              <IconoBuscar size={17} />
+              <IconoBuscar size={16} />
             </button>
             <button
               type="button"
@@ -218,7 +218,7 @@ export default function Listado({
               aria-pressed={filtrosVisibles}
               onClick={() => setFiltrosVisibles((visible) => !visible)}
             >
-              <IconoFiltro size={17} />
+              <IconoFiltro size={16} />
             </button>
             <button
               type="button"
@@ -227,7 +227,7 @@ export default function Listado({
               title="Conciliar con la DIAN"
               onClick={onConciliarDian}
             >
-              <IconoConciliarDian size={17} />
+              <IconoConciliarDian size={16} />
             </button>
             <button
               type="button"
@@ -236,7 +236,7 @@ export default function Listado({
               title="Reporte anual"
               onClick={onAbrirReporte}
             >
-              <IconoReporte size={17} />
+              <IconoReporte size={16} />
             </button>
           </>
         )}
@@ -251,24 +251,14 @@ export default function Listado({
             placeholder="Buscar por comercio…"
             value={formulario.comercio}
             onChange={(e) => setFormulario({ ...formulario, comercio: e.target.value })}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              margin: '8px 0 4px',
-              padding: '8px 10px',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              color: 'var(--color-text)',
-              background: 'transparent',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-button)',
-            }}
+            className="campo-texto"
+            style={{ marginTop: 10 }}
           />
         )}
 
         {filtrosVisibles && (
           <div
-            style={{ display: 'flex', flexWrap: 'nowrap', gap: 5, alignItems: 'center', overflowX: 'auto', padding: '10px 0 2px' }}
+            style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, alignItems: 'center', overflowX: 'auto', padding: '10px 0 2px' }}
           >
             <label className={`chip ${formulario.fechaDesde ? 'activo' : ''}`}>
               Desde
@@ -338,7 +328,7 @@ export default function Listado({
                 ))}
               </select>
             </label>
-            <button type="button" className="chip" onClick={limpiarFiltros}>
+            <button type="button" className="chip-limpiar" onClick={limpiarFiltros}>
               Limpiar
             </button>
           </div>
@@ -356,10 +346,17 @@ export default function Listado({
         <>
           <div className="card" style={{ padding: '14px 16px', margin: '18px 0 6px', opacity: cargando ? 0.6 : 1 }}>
             <MarcasEsquina />
-            <p className="kicker" style={{ color: 'var(--color-accent-fg-tint)' }}>
+            <p className="kicker" style={{ color: tema === 'nocturne' ? 'var(--color-accent)' : 'var(--color-accent-fg-tint)' }}>
               {tituloTarjeta} · {new Date().getFullYear()}
             </p>
-            <p className="heading" style={{ margin: '4px 0 0', fontSize: 42, lineHeight: 1.05 }}>
+            <p
+              className="heading"
+              style={
+                tema === 'nocturne'
+                  ? { margin: '4px 0 0', fontSize: 36, lineHeight: 1.1, letterSpacing: '-0.02em' }
+                  : { margin: '4px 0 0', fontSize: 42, lineHeight: 1.05 }
+              }
+            >
               {formatearCentavos(sumaTotal, 'COP')}
             </p>
             <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-text-muted)' }}>
@@ -407,7 +404,9 @@ export default function Listado({
             height: 58,
             display: 'grid',
             placeItems: 'center',
-            boxShadow: '0 3px 10px rgba(0, 0, 0, 0.16)',
+            background: tema === 'nocturne' ? 'var(--card-bg)' : undefined,
+            boxShadow:
+              tema === 'nocturne' ? '0 0 28px rgba(145, 132, 217, 0.35)' : '0 3px 10px rgba(43, 43, 45, 0.16)',
           }}
         >
           <MarcasEsquina />
@@ -548,7 +547,11 @@ function FilaFactura({
 }) {
   const esOtraMoneda = factura.moneda !== 'COP';
   const esElegible = factura.elegibilidadTributaria === true;
-  const IconoCheck = obtenerIcono('check', tema);
+  const necesitaRevision = factura.estado === 'necesita_revisión';
+  const IconoCheck = obtenerIcono('check-simple', tema);
+  const tamañoNombre = tema === 'nocturne' ? 14 : 15;
+  const pesoMonto = tema === 'nocturne' ? 500 : 600;
+  const motivoCorto = factura.elegibilidadMotivo?.replace(/^No elegible:\s*/, '');
 
   return (
     <li className="fila-listado">
@@ -574,7 +577,7 @@ function FilaFactura({
           <span
             style={{
               display: 'block',
-              fontSize: 15,
+              fontSize: tamañoNombre,
               fontWeight: 500,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -600,34 +603,54 @@ function FilaFactura({
               </span>
             )}
           </span>
-          <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
-            {formatearFecha(factura.fechaHoraCompra)}
-            {esOtraMoneda && (
+          {necesitaRevision ? (
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 12,
+                color: 'var(--color-estado-revision)',
+              }}
+            >
               <span
                 style={{
-                  marginLeft: 6,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: 'var(--color-accent-fg-tint)',
-                  background: 'var(--color-accent-bg-tint)',
-                  border: '1px solid var(--color-accent)',
-                  borderRadius: 'var(--radius-button)',
-                  padding: '1px 6px',
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: 'var(--color-estado-revision-fg)',
+                  flex: 'none',
                 }}
-              >
-                {factura.moneda}
-              </span>
-            )}
-          </span>
+              />
+              Necesita revisión · {formatearFecha(factura.fechaHoraCompra)}
+            </span>
+          ) : (
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
+              {formatearFecha(factura.fechaHoraCompra)}
+              {esOtraMoneda && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: 'var(--color-accent-fg-tint)',
+                    background: 'var(--color-accent-bg-tint)',
+                    border: tema === 'nocturne' ? '1px solid rgba(145, 132, 217, 0.4)' : 'none',
+                    borderRadius: tema === 'nocturne' ? 4 : 0,
+                    padding: '1px 6px',
+                  }}
+                >
+                  {factura.moneda}
+                </span>
+              )}
+            </span>
+          )}
         </span>
         <span style={{ textAlign: 'right', flex: 'none' }}>
-          <span style={{ display: 'block', fontSize: 15, fontWeight: 600 }}>
+          <span style={{ display: 'block', fontSize: tamañoNombre, fontWeight: pesoMonto }}>
             {formatearCentavos(factura.totalCentavos, factura.moneda)}
           </span>
           <span
-            /* El motivo completo va en el tooltip y en Detalle; aquí solo la etiqueta
-               corta, para que el nombre del comercio no quede aplastado a dos líneas. */
-            title={factura.elegibilidadMotivo ?? undefined}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -647,6 +670,8 @@ function FilaFactura({
                 <IconoCheck size={9} />
                 Elegible
               </>
+            ) : motivoCorto ? (
+              `No elegible · ${motivoCorto}`
             ) : (
               'No elegible'
             )}

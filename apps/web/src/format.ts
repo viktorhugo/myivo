@@ -32,7 +32,7 @@ export function formatearCentavos(centavos: number | null, moneda: string): stri
 }
 
 /** Día y hora por separado — permite resaltar solo la hora (bottom sheet de duplicado). */
-export function formatearFechaPartes(iso: string | null): { dia: string; hora: string } {
+export function formatearFechaPartes(iso: string | null, opciones?: { conAnio?: boolean }): { dia: string; hora: string } {
   if (!iso) {
     return { dia: '—', hora: '' };
   }
@@ -40,14 +40,23 @@ export function formatearFechaPartes(iso: string | null): { dia: string; hora: s
   if (Number.isNaN(fecha.getTime())) {
     return { dia: iso, hora: '' };
   }
-  const dia = fecha.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  const dia = fecha.toLocaleDateString(
+    'es-CO',
+    opciones?.conAnio ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' },
+  );
   const hora = fecha.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
   return { dia, hora };
 }
 
-/** Formato compacto del diseño de referencia: "28 jun · 6:12 p.m." */
-export function formatearFecha(iso: string | null): string {
-  const { dia, hora } = formatearFechaPartes(iso);
+/**
+ * Formato compacto del diseño de referencia: "28 jun · 6:12 p.m." — sin año,
+ * porque en Listado ese contexto ya lo da el encabezado de mes/agrupación.
+ * `conAnio` lo agrega explícitamente donde sí hace falta (Detalle: fecha de
+ * la factura, validación DIAN, correcciones manuales — un solo documento
+ * fuera de cualquier agrupación por mes).
+ */
+export function formatearFecha(iso: string | null, opciones?: { conAnio?: boolean }): string {
+  const { dia, hora } = formatearFechaPartes(iso, opciones);
   return hora ? `${dia} · ${hora}` : dia;
 }
 

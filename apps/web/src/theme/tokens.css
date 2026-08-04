@@ -27,12 +27,17 @@
   --color-text: #1d1f20;
   --color-text-muted: rgba(29, 31, 32, 0.55);
   --color-text-muted-2: rgba(29, 31, 32, 0.45);
+  /* Etiquetas de campo/texto de cuerpo secundario (menos apagado que muted) — Login, Conciliar DIAN. */
+  --color-text-label: rgba(29, 31, 32, 0.7);
+  /* El más apagado de la escala (kickers de "lote"/"mes", disclaimers, valores tachados) — igual a muted-2 en Industry, pero un escalón más tenue en Nocturne (ver token abajo). */
+  --color-text-faint: rgba(29, 31, 32, 0.45);
   --color-accent: #5980a6;
   --color-accent-fg: #f2f2f3;
   --color-accent-bg-tint: #eef6ff;
   --color-accent-fg-tint: #41617f;
   --color-border: rgba(29, 31, 32, 0.18);
   --color-border-strong: rgba(29, 31, 32, 0.08);
+  --color-input-bg: #e9e9ea;
 
   --color-estado-recibida: rgba(29, 31, 32, 0.55);
   --color-estado-procesando: #5980a6;
@@ -67,12 +72,15 @@
   --color-text: #e9e9ed;
   --color-text-muted: rgba(233, 233, 237, 0.5);
   --color-text-muted-2: rgba(233, 233, 237, 0.45);
+  --color-text-label: rgba(233, 233, 237, 0.7);
+  --color-text-faint: rgba(233, 233, 237, 0.4);
   --color-accent: #9184d9;
   --color-accent-fg: #b5abfc;
   --color-accent-bg-tint: transparent;
   --color-accent-fg-tint: #b5abfc;
   --color-border: rgba(233, 233, 237, 0.16);
   --color-border-strong: rgba(233, 233, 237, 0.09);
+  --color-input-bg: #161826;
 
   --color-estado-recibida: #9397ab;
   --color-estado-procesando: #9184d9;
@@ -128,6 +136,14 @@ body {
   background: var(--card-bg);
   border: var(--card-border);
 }
+/* Nocturne: una tarjeta de contenido normal (identificación tributaria,
+   conciliación DIAN, reporte anual…) solo lleva el relleno de superficie, sin
+   contorno — el borde queda reservado a elementos que necesitan distinguirse
+   flotando sobre otro contenido (menú contextual, tarjetas comparativas del
+   bottom sheet de duplicado), que lo reafirman explícitamente más abajo. */
+[data-theme='nocturne'] .card {
+  border: none;
+}
 
 /* Marcas de registro "+" en las 4 esquinas — solo visibles en Industry (research.md § 2) */
 [data-theme='nocturne'] .corner-mark {
@@ -168,9 +184,26 @@ body {
      que las use (Captura, el FAB de Listado) las posiciona respecto al
      ancestro posicionado más cercano que encuentre, no respecto a sí mismo. */
   position: relative;
-  font-family: var(--font-body);
-  font-weight: var(--font-weight-body-strong);
+  /* Tipografía "heading" (condensada + versalitas en Industry, Inter 500 en
+     Nocturne), no la de cuerpo — todo CTA principal del diseño de referencia
+     usa este tratamiento, nunca la fuente de párrafo normal. */
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: 0.04em;
+  text-transform: var(--titulo-transform);
   border-radius: var(--radius-button);
+  cursor: pointer;
+}
+
+/* Outline secundario (Cancelar, Copiar CUFE, Desactivar 2FA, etc.) — mismo
+   radio/familia que el resto de controles, nunca relleno, en ningún tema. */
+.btn-secondary {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-heading);
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
   cursor: pointer;
 }
 
@@ -233,6 +266,41 @@ body {
   text-transform: uppercase;
   margin: 0;
 }
+[data-theme='nocturne'] .kicker {
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+
+/* Input de texto/contraseña estándar — usado en Login, Mi cuenta, Listado (buscador), Conciliar DIAN. */
+.campo-texto {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  /* Sin esto, el estilo nativo del sistema operativo (relieve/gradiente propio
+     de un <input>) se dibuja encima del fondo plano de arriba, dejándolo
+     visiblemente más oscuro/saturado que el hex exacto que se está pidiendo. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+/* El autocompletado del navegador (Chrome/Safari) pinta su propio fondo
+   (gris/azulado) detrás del valor recordado, encima de cualquier `background`
+   — sin este truco del box-shadow gigante hacia adentro, un campo con
+   autocompletado activo nunca respeta `--color-input-bg`. */
+.campo-texto:-webkit-autofill,
+.campo-texto:-webkit-autofill:hover,
+.campo-texto:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-input-bg) inset;
+  -webkit-text-fill-color: var(--color-text);
+  caret-color: var(--color-text);
+}
 
 /* Botón cuadrado de icono del encabezado (buscar / filtrar): 34x34 con borde. */
 .boton-icono {
@@ -266,6 +334,19 @@ body {
   border-bottom: 1px solid var(--color-border-strong);
   min-width: 0;
 }
+/* Mismo patrón de "línea que se desvanece en los extremos" que `.fila-listado`
+   — en Nocturne ningún separador es una línea dura de borde a borde. */
+[data-theme='nocturne'] .celda-campo {
+  border-bottom: none;
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--color-border-strong) 24px,
+      var(--color-border-strong) calc(100% - 24px),
+      transparent
+    )
+    no-repeat bottom / 100% 1px;
+}
 .etiqueta-campo {
   display: flex;
   align-items: center;
@@ -275,6 +356,11 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-muted-2);
+}
+[data-theme='nocturne'] .etiqueta-campo {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: rgba(233, 233, 237, 0.4);
 }
 .valor-campo {
   display: block;
@@ -290,19 +376,30 @@ body {
   font-weight: 500;
   color: var(--color-text);
 }
+[data-theme='nocturne'] .valor-campo {
+  margin-top: 2px;
+  font-size: 13.5px;
+  font-weight: 400;
+}
 .badge-corregido {
   margin-left: 5px;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: var(--titulo-transform);
   color: var(--color-accent-fg-tint);
   background: var(--color-accent-bg-tint);
-  border: 1px solid var(--color-accent);
+  border: none;
   border-radius: var(--radius-button);
   padding: 1px 5px;
   vertical-align: 2px;
   white-space: nowrap;
+}
+[data-theme='nocturne'] .badge-corregido {
+  font-weight: 500;
+  letter-spacing: normal;
+  border: 1px solid rgba(145, 132, 217, 0.45);
+  border-radius: 4px;
 }
 
 .confianza-alta { color: var(--color-estado-extraida-fg); }
@@ -317,13 +414,14 @@ body {
   padding: 4px 8px;
   border-radius: var(--radius-button);
   border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex: none;
   white-space: nowrap;
 }
+[data-theme='industry'] .chip { color: rgba(29, 31, 32, 0.75); }
+[data-theme='nocturne'] .chip { color: rgba(233, 233, 237, 0.65); border-radius: 6px; }
 [data-theme='industry'] .chip.activo {
   background: var(--color-accent);
   color: var(--color-accent-fg);
@@ -333,6 +431,21 @@ body {
   background: transparent;
   color: var(--color-accent-fg-tint);
   border-color: var(--color-accent);
+}
+
+/* "Limpiar" — no es un chip con borde, es un link de texto dentro de la misma fila. */
+.chip-limpiar {
+  flex: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-accent-fg-tint);
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
 }
 .chip select,
 .chip input {
@@ -375,9 +488,15 @@ body {
   right: 0;
   bottom: 0;
   z-index: 21;
+  /* Ecoa el maxWidth:430/margin:auto del <main> — el backdrop cubre todo el
+     viewport (arriba), pero la hoja misma queda centrada en la misma columna
+     que el resto del contenido, incluso en pantallas anchas. */
+  max-width: 430px;
+  margin: 0 auto;
   padding: 18px 20px 30px;
   font-family: var(--font-body);
   color: var(--color-text);
+  box-sizing: border-box;
 }
 [data-theme='industry'] .duplicado-sheet {
   background: var(--color-bg);
@@ -407,10 +526,14 @@ body {
 .duplicado-subtitulo {
   margin: 2px 0 0;
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: rgba(29, 31, 32, 0.65);
   text-wrap: pretty;
 }
-[data-theme='nocturne'] .duplicado-subtitulo { font-size: 12.5px; }
+[data-theme='nocturne'] .duplicado-subtitulo {
+  font-size: 12.5px;
+  color: rgba(233, 233, 237, 0.6);
+  margin-top: 3px;
+}
 
 .duplicado-tarjetas {
   display: flex;
@@ -428,13 +551,16 @@ body {
   padding: 12px;
   min-width: 0;
 }
-[data-theme='nocturne'] .duplicado-tarjeta { background: var(--color-bg); }
+[data-theme='nocturne'] .duplicado-tarjeta {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
 [data-theme='industry'] .duplicado-tarjeta.acento { border-color: var(--color-accent); }
 [data-theme='nocturne'] .duplicado-tarjeta.acento {
   border-color: var(--color-accent);
   box-shadow: 0 0 20px rgba(145, 132, 217, 0.18);
 }
-.duplicado-tarjeta .kicker { margin: 0; }
+.duplicado-tarjeta .kicker { margin: 0; font-size: 9px; }
 .duplicado-tarjeta.acento .kicker { color: var(--color-accent-fg-tint); }
 .duplicado-tarjeta .comercio {
   margin: 4px 0 0;
@@ -470,6 +596,7 @@ body {
   font-weight: var(--font-weight-heading);
   font-size: 15px;
   letter-spacing: 0.06em;
+  text-transform: var(--titulo-transform);
 }
 [data-theme='nocturne'] .duplicado-boton {
   font-size: 14px;
@@ -484,14 +611,15 @@ body {
   border-radius: var(--radius-button);
 }
 [data-theme='industry'] .duplicado-boton-secundario { color: var(--color-accent-fg-tint); }
-[data-theme='nocturne'] .duplicado-boton-secundario { color: var(--color-text); opacity: 0.8; }
+[data-theme='nocturne'] .duplicado-boton-secundario { color: rgba(233, 233, 237, 0.8); }
 
 .duplicado-nota {
   margin: 10px 0 0;
   text-align: center;
   font-size: 11px;
-  color: var(--color-text-muted-2);
+  color: rgba(29, 31, 32, 0.5);
 }
+[data-theme='nocturne'] .duplicado-nota { color: var(--color-text-muted-2); }
 
 /*
  * Menú contextual "···" (Detalle — acciones sobre la factura). Fondo sólido
@@ -514,9 +642,10 @@ body {
   z-index: 21;
   width: 210px;
 }
-[data-theme='industry'] .menu-contextual { background: var(--color-bg); }
+[data-theme='industry'] .menu-contextual { background: var(--color-bg); width: 206px; }
 [data-theme='nocturne'] .menu-contextual {
   background: var(--card-bg);
+  border: 1px solid var(--color-border);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
 
@@ -535,6 +664,19 @@ body {
   color: var(--color-text);
   cursor: pointer;
   text-align: left;
+}
+[data-theme='industry'] .menu-contextual-item:not(:last-child) {
+  border-bottom: 1px solid rgba(29, 31, 32, 0.1);
+}
+[data-theme='nocturne'] .menu-contextual-item:not(:last-child) {
+  background: linear-gradient(
+      to right,
+      transparent,
+      rgba(233, 233, 237, 0.09) 12px,
+      rgba(233, 233, 237, 0.09) calc(100% - 12px),
+      transparent
+    )
+    no-repeat bottom / 100% 1px;
 }
 .menu-contextual-item.peligro {
   color: var(--color-estado-fallida-fg);
@@ -564,7 +706,7 @@ body {
 [data-theme='nocturne'] .estado-vacio {
   align-items: flex-start;
   text-align: left;
-  padding: 0 16px;
+  padding: 0;
 }
 
 .estado-vacio-icono {
@@ -664,6 +806,14 @@ body {
 .badge-estado.procesando { color: var(--color-accent-fg-tint); }
 [data-theme='industry'] .badge-estado.procesando { background: var(--color-accent-bg-tint); }
 [data-theme='nocturne'] .badge-estado.procesando { color: var(--color-accent-fg); border: 1px solid rgba(145, 132, 217, 0.45); }
+/* Gira el ícono de "cargando" del badge — el componente de ícono siempre
+   renderiza un <svg> interno, así que esta regla alcanza sin tocar el JSX. */
+@keyframes girar-badge-procesando {
+  to { transform: rotate(360deg); }
+}
+.badge-estado.procesando svg {
+  animation: girar-badge-procesando 1s linear infinite;
+}
 
 .badge-estado.extraida { color: #31543f; }
 [data-theme='industry'] .badge-estado.extraida { background: rgba(77, 124, 91, 0.13); }

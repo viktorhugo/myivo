@@ -21,7 +21,7 @@ export default function EstadoVacio({
     <div className="estado-vacio">
       <div className="card estado-vacio-icono">
         <MarcasEsquina />
-        <IconoFactura size={40} color="var(--color-accent)" />
+        <IconoFactura size={40} color={tema === 'nocturne' ? 'var(--color-accent-fg)' : 'var(--color-accent)'} />
       </div>
       <p className="heading titulo-pantalla estado-vacio-titulo">Aún no tienes facturas</p>
       <p className="estado-vacio-subtitulo">

@@ -25,10 +25,10 @@ export default function SelectorTema({
         fontFamily: 'var(--font-body)',
         fontSize: 12,
         background: 'transparent',
-        color: 'var(--color-text-muted)',
+        color: 'var(--color-text)',
         border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-button)',
-        padding: '4px 8px',
+        padding: '6px 10px',
       }}
     >
       {OPCIONES.map((opcion) => (

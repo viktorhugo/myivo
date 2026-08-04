@@ -17,7 +17,6 @@ import {
   type ValidacionDianDto,
 } from '../services/validacion-dian';
 import {
-  ETIQUETA_ESTADO,
   ETIQUETA_MEDIO_PAGO,
   ETIQUETA_RESULTADO_DIAN,
   ETIQUETA_TIPO_DOCUMENTO,
@@ -64,15 +63,15 @@ function PuntoConfianza({ valor }: { valor: number | undefined }) {
   );
 }
 
-function LeyendaConfianza() {
+function LeyendaConfianza({ tema }: { tema: TemaResuelto }) {
   return (
     <div
       style={{
         display: 'flex',
         gap: 12,
         fontSize: 10,
-        color: 'var(--color-text-muted)',
-        padding: '8px 2px 0',
+        color: tema === 'nocturne' ? 'var(--color-text-muted-2)' : 'rgba(29, 31, 32, 0.5)',
+        padding: '10px 2px 0',
       }}
     >
       <span>Confianza:</span>
@@ -205,6 +204,23 @@ function construirCamposTotales(factura: FacturaDetalleDto): DefinicionCampo[] {
   ];
 }
 
+/** Etiqueta amigable para "Correcciones manuales" — mismos nombres que la rejilla de campos clave/totales, no el nombre interno crudo. */
+const ETIQUETA_CAMPO_CORRECCION: Record<string, string> = {
+  comercioNombre: 'Comercio',
+  comercioNIT: 'NIT',
+  fechaHoraCompra: 'Fecha y hora',
+  medioPago: 'Medio de pago',
+  tipoDocumento: 'Tipo de documento',
+  moneda: 'Moneda',
+  adquirienteNombre: 'Adquiriente',
+  adquirienteIdentificacion: 'Identificación',
+  cufe: 'CUFE',
+  subtotal: 'Subtotal',
+  impuestoConsumo: 'Impuesto al consumo',
+  propina: 'Propina',
+  total: 'Total',
+};
+
 /** Última corrección registrada por campo, para el badge "Corregido" (FR-005). */
 function ultimaCorreccionPorCampo(correcciones: CorreccionManualDto[]): Map<string, CorreccionManualDto> {
   const mapa = new Map<string, CorreccionManualDto>();
@@ -290,10 +306,15 @@ function EditorCampo({
         </p>
       )}
       <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-        <button type="submit" className="btn-primary" disabled={guardando} style={{ fontSize: 11, padding: '3px 8px' }}>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={guardando}
+          style={{ fontSize: 11, padding: '3px 8px', fontFamily: 'var(--font-body)', letterSpacing: 'normal' }}
+        >
           {guardando ? 'Guardando…' : 'Guardar'}
         </button>
-        <button type="button" onClick={onCancelar} disabled={guardando} style={{ fontSize: 11, padding: '3px 8px' }}>
+        <button type="button" onClick={onCancelar} disabled={guardando} className="btn-secondary" style={{ fontSize: 11, padding: '3px 8px' }}>
           Cancelar
         </button>
       </div>
@@ -343,7 +364,7 @@ function CeldaCampo({
               style={{
                 display: 'block',
                 fontSize: 11,
-                color: 'var(--color-text-muted-2)',
+                color: 'var(--color-text-faint)',
                 textDecoration: 'line-through',
               }}
             >
@@ -399,7 +420,7 @@ function MenuAcciones({
         onClick={() => (abierto ? cerrar() : setAbierto(true))}
         style={{ flex: 'none' }}
       >
-        <IconoMenu size={17} />
+        <IconoMenu size={18} />
       </button>
       {abierto && (
         <>
@@ -433,25 +454,32 @@ function MenuAcciones({
                 </button>
               </>
             ) : (
-              <div style={{ padding: '10px 14px', fontFamily: 'var(--font-body)' }}>
-                <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  ¿Eliminar esta factura? El registro y la foto original quedan recuperables — solo
-                  deja de aparecer en tu listado.
+              <div style={{ padding: '12px 14px', fontFamily: 'var(--font-body)' }}>
+                <p
+                  style={{
+                    margin: '0 0 8px',
+                    fontSize: 11.5,
+                    color: tema === 'nocturne' ? 'rgba(233, 233, 237, 0.65)' : 'var(--color-text-label)',
+                    textWrap: 'pretty',
+                  }}
+                >
+                  El registro y la foto original quedan recuperables — solo deja de aparecer en tu listado.
                 </p>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="button"
                     onClick={onEliminar}
                     disabled={eliminando}
                     style={{
                       flex: 1,
-                      padding: '6px 8px',
+                      padding: 8,
                       fontSize: 12,
-                      fontWeight: 600,
-                      background: 'var(--color-estado-fallida-fg)',
-                      color: 'var(--color-bg)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-button)',
+                      fontFamily: 'var(--font-body)',
+                      fontWeight: tema === 'nocturne' ? 500 : 600,
+                      background: tema === 'nocturne' ? 'transparent' : 'var(--color-estado-fallida)',
+                      color: tema === 'nocturne' ? 'var(--color-estado-fallida-fg)' : 'var(--color-bg)',
+                      border: tema === 'nocturne' ? '1px solid var(--color-estado-fallida-fg)' : 'none',
+                      borderRadius: tema === 'nocturne' ? 6 : 0,
                       cursor: 'pointer',
                     }}
                   >
@@ -461,7 +489,8 @@ function MenuAcciones({
                     type="button"
                     onClick={cerrar}
                     disabled={eliminando}
-                    style={{ flex: 1, padding: '6px 8px', fontSize: 12, cursor: 'pointer' }}
+                    className="btn-secondary"
+                    style={{ flex: 1, padding: 8, fontSize: 12, borderRadius: tema === 'nocturne' ? 6 : 0 }}
                   >
                     Cancelar
                   </button>
@@ -483,7 +512,7 @@ function MenuAcciones({
  * sigue funcionando. El registro del resultado es siempre manual — ninguna
  * llamada de este sistema llega jamás a la DIAN (constitution Principio VI).
  */
-function SeccionValidacionDian({ facturaId, cufe }: { facturaId: string; cufe: string }) {
+function SeccionValidacionDian({ tema, facturaId, cufe }: { tema: TemaResuelto; facturaId: string; cufe: string }) {
   const [historial, setHistorial] = useState<ValidacionDianDto[]>([]);
   const [cargando, setCargando] = useState(true);
   const [registrando, setRegistrando] = useState(false);
@@ -528,15 +557,14 @@ function SeccionValidacionDian({ facturaId, cufe }: { facturaId: string; cufe: s
   const ultima = historial[0];
 
   return (
-    <div className="card" style={{ padding: '12px 14px', marginTop: 8 }}>
+    <div className="card" style={{ padding: '12px 14px', marginTop: 14 }}>
       <MarcasEsquina />
-      <p className="kicker" style={{ margin: 0, color: 'var(--color-text-muted-2)' }}>
+      <p className="kicker" style={{ margin: 0, color: tema === 'nocturne' ? 'var(--color-accent)' : 'var(--color-accent-fg-tint)' }}>
         Validación DIAN
       </p>
       {ultima && (
-        <p style={{ margin: '4px 0 0', fontSize: 13 }}>
-          Última validación: <strong>{ETIQUETA_RESULTADO_DIAN[ultima.resultado]}</strong> ·{' '}
-          {formatearFecha(ultima.creadaEn)}
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: tema === 'nocturne' ? 'rgba(233, 233, 237, 0.6)' : 'rgba(29, 31, 32, 0.6)' }}>
+          <strong>{ETIQUETA_RESULTADO_DIAN[ultima.resultado]}</strong> · {formatearFecha(ultima.creadaEn, { conAnio: true })}
         </p>
       )}
 
@@ -546,11 +574,11 @@ function SeccionValidacionDian({ facturaId, cufe }: { facturaId: string; cufe: s
           target="_blank"
           rel="noreferrer"
           className="btn-primary"
-          style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none', display: 'inline-block' }}
+          style={{ flex: 1, padding: 8, fontSize: 12, fontFamily: 'var(--font-body)', letterSpacing: 'normal', textAlign: 'center', textDecoration: 'none' }}
         >
           Consultar en la DIAN
         </a>
-        <button type="button" onClick={copiarCufe} style={{ padding: '6px 12px', fontSize: 12 }}>
+        <button type="button" onClick={copiarCufe} className="btn-secondary" style={{ flex: 1, padding: 8, fontSize: 12 }}>
           {copiado ? 'CUFE copiado' : 'Copiar CUFE'}
         </button>
       </div>
@@ -580,7 +608,7 @@ function SeccionValidacionDian({ facturaId, cufe }: { facturaId: string; cufe: s
           onClick={registrar}
           disabled={registrando}
           className="btn-primary"
-          style={{ padding: '6px 12px', fontSize: 12 }}
+          style={{ padding: 8, fontSize: 12, fontFamily: 'var(--font-body)', letterSpacing: 'normal' }}
         >
           {registrando ? 'Registrando…' : 'Registrar resultado'}
         </button>
@@ -718,18 +746,28 @@ export default function Detalle({
     );
   }
 
+  const grosorTrazo = tema === 'nocturne' ? 1.7 : 1.5;
+
   return (
-    <section style={{ padding: '4px 20px 24px', fontFamily: 'var(--font-body)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, position: 'relative' }}>
-        <button type="button" onClick={onVolver} className="boton-icono" aria-label="Volver">
-          <IconoVolver size={17} />
+    <section style={{ padding: '8px 20px 30px', fontFamily: 'var(--font-body)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }}>
+        <button
+          type="button"
+          onClick={onVolver}
+          aria-label="Volver"
+          style={{ background: 'transparent', border: 'none', color: 'var(--color-text)', cursor: 'pointer', padding: 4 }}
+        >
+          <IconoVolver size={20} strokeWidth={grosorTrazo} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 24, lineHeight: 1 }}>
+          <h1
+            className="heading titulo-pantalla"
+            style={{ margin: 0, fontSize: tema === 'nocturne' ? 19 : 24, lineHeight: 1 }}
+          >
             {factura.comercioNombre ?? 'Factura sin comercio'}
           </h1>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>
-            {formatearFecha(factura.fechaHoraCompra)} · {ETIQUETA_ESTADO[factura.estado]}
+            {formatearFecha(factura.fechaHoraCompra, { conAnio: true })}
           </p>
         </div>
         <MenuAcciones
@@ -761,23 +799,26 @@ export default function Detalle({
           }}
         />
       )}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0 2px' }}>
-        <button
-          type="button"
-          onClick={() => setFotoVisible((actual) => !actual)}
-          className="heading titulo-pantalla"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--color-accent-fg-tint)',
-            fontSize: 11,
-            letterSpacing: '0.06em',
-            cursor: 'pointer',
-          }}
-        >
-          {fotoVisible ? 'Ocultar foto' : 'Mostrar foto'}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setFotoVisible((actual) => !actual)}
+        style={{
+          display: 'block',
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--color-accent-fg-tint)',
+          fontFamily: 'var(--font-body)',
+          fontWeight: 600,
+          fontSize: tema === 'nocturne' ? 13 : 11,
+          letterSpacing: tema === 'nocturne' ? 'normal' : '0.04em',
+          textAlign: 'center',
+          padding: '10px 0 6px',
+          cursor: 'pointer',
+        }}
+      >
+        {fotoVisible ? 'Ocultar foto' : 'Mostrar foto'}
+      </button>
 
       {factura.elegibilidadTributaria !== null && (
         <div
@@ -785,10 +826,17 @@ export default function Detalle({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            border: `1px solid ${esElegible ? 'var(--color-estado-extraida-fg)' : 'var(--color-estado-revision-fg)'}`,
+            border: `1px solid ${
+              esElegible
+                ? tema === 'nocturne'
+                  ? 'rgba(124, 199, 154, 0.45)'
+                  : 'var(--color-estado-extraida-fg)'
+                : 'var(--color-estado-revision-fg)'
+            }`,
+            background: esElegible && tema === 'nocturne' ? 'rgba(124, 199, 154, 0.05)' : undefined,
             borderRadius: 'var(--radius-card)',
             padding: '10px 12px',
-            marginTop: 8,
+            marginTop: 10,
           }}
         >
           {esElegible ? (
@@ -799,66 +847,98 @@ export default function Detalle({
           <div>
             <div
               style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: esElegible ? 'var(--color-estado-extraida)' : 'var(--color-estado-revision)',
+                fontSize: tema === 'nocturne' ? 13.5 : 14,
+                fontWeight: tema === 'nocturne' ? 500 : 600,
+                color: esElegible
+                  ? tema === 'nocturne'
+                    ? 'var(--color-estado-extraida-fg)'
+                    : '#31543f'
+                  : 'var(--color-estado-revision)',
               }}
             >
               {esElegible ? 'Elegible para deducción del 1%' : factura.elegibilidadMotivo}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-              El sistema organiza, no emite concepto tributario — revísalo con tu contador antes de
-              usarlo en tu declaración de renta.
-            </div>
+            {esElegible && (
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>
+                Factura electrónica · a tu nombre · pago electrónico
+              </div>
+            )}
           </div>
         </div>
       )}
+      {factura.elegibilidadTributaria !== null && (
+        <div
+          style={{
+            fontSize: 10.5,
+            color: 'var(--color-text-faint)',
+            padding: '6px 2px 0',
+            textWrap: 'pretty',
+          }}
+        >
+          El sistema organiza, no emite concepto tributario — revísalo con tu contador antes de usarlo en
+          tu declaración de renta.
+        </div>
+      )}
 
-      {factura.cufe && <SeccionValidacionDian facturaId={factura.id} cufe={factura.cufe} />}
+      {factura.cufe && <SeccionValidacionDian tema={tema} facturaId={factura.id} cufe={factura.cufe} />}
 
-      <LeyendaConfianza />
+      <LeyendaConfianza tema={tema} />
 
       <div className="rejilla-campos">{construirCamposClave(factura).map(renderCampo)}</div>
 
-      <p className="kicker" style={{ color: 'var(--color-text-muted-2)', padding: '14px 0 2px' }}>
+      <p className="kicker" style={{ color: 'var(--color-text-faint)', padding: '12px 0 2px' }}>
         Ítems · {factura.items.length}
       </p>
       {factura.items.length === 0 ? (
         <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin ítems extraídos.</p>
       ) : (
-        <div style={{ fontSize: 13 }}>
-          {factura.items.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                display: 'flex',
-                gap: 8,
-                padding: '5px 0',
-                borderBottom: '1px solid var(--color-border-strong)',
-              }}
-            >
-              <span style={{ flex: 1, minWidth: 0 }}>{item.descripcion ?? '—'}</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>{item.cantidad ?? '—'}</span>
-              <span style={{ width: 74, textAlign: 'right', fontWeight: 500 }}>
-                {formatearCentavos(item.valorTotalCentavos, factura.moneda)}
-              </span>
-              <PuntoConfianza valor={item.nivelConfianza} />
-            </div>
-          ))}
+        <div style={{ fontSize: tema === 'nocturne' ? 12.5 : 13 }}>
+          {factura.items.map((item, indice) => {
+            const esUltimo = indice === factura.items.length - 1;
+            return (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  padding: '5px 0',
+                  borderBottom: !esUltimo && tema === 'industry' ? '1px solid var(--color-border-strong)' : undefined,
+                  background:
+                    !esUltimo && tema === 'nocturne'
+                      ? 'linear-gradient(to right, transparent, rgba(233, 233, 237, 0.07) 24px, rgba(233, 233, 237, 0.07) calc(100% - 24px), transparent) no-repeat bottom / 100% 1px'
+                      : undefined,
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>{item.descripcion ?? '—'}</span>
+                <span style={{ color: tema === 'nocturne' ? 'var(--color-text-muted-2)' : 'rgba(29, 31, 32, 0.5)' }}>
+                  {item.cantidad ?? '—'}
+                </span>
+                <span style={{ width: 70, textAlign: 'right', fontWeight: 500 }}>
+                  {formatearCentavos(item.valorTotalCentavos, factura.moneda)}
+                </span>
+                <PuntoConfianza valor={item.nivelConfianza} />
+              </div>
+            );
+          })}
         </div>
       )}
 
       <div
         style={{
-          borderTop: '1px solid var(--color-border)',
-          marginTop: 10,
+          borderTop: tema === 'industry' ? '1px solid var(--color-border)' : undefined,
+          background:
+            tema === 'nocturne'
+              ? 'linear-gradient(to right, transparent, rgba(233, 233, 237, 0.16) 24px, rgba(233, 233, 237, 0.16) calc(100% - 24px), transparent) no-repeat top / 100% 1px'
+              : undefined,
+          marginTop: 6,
           paddingTop: 8,
-          fontSize: 13,
+          fontSize: tema === 'nocturne' ? 12.5 : 13,
         }}
       >
         {construirCamposTotales(factura).map((definicion) => (
           <FilaTotal
             key={definicion.campoPublico}
+            tema={tema}
             definicion={definicion}
             confianza={definicion.campoConfianza ? factura.confianzaCampos[definicion.campoConfianza] : undefined}
             editando={campoEnEdicion === definicion.campoPublico}
@@ -873,7 +953,9 @@ export default function Detalle({
             key={iva.tarifa}
             style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}
           >
-            <span style={{ color: 'var(--color-text-muted)' }}>IVA {iva.tarifa}%</span>
+            <span style={{ color: tema === 'nocturne' ? 'rgba(233, 233, 237, 0.6)' : 'rgba(29, 31, 32, 0.65)' }}>
+              IVA {iva.tarifa}%
+            </span>
             <span style={{ fontWeight: 500 }}>{formatearCentavos(iva.valorCentavos, factura.moneda)}</span>
           </div>
         ))}
@@ -886,8 +968,23 @@ export default function Detalle({
             padding: '6px 0 10px',
           }}
         >
-          <span className="heading titulo-pantalla" style={{ fontSize: 15, letterSpacing: '0.06em' }}>
+          <span
+            className="heading"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              // A diferencia del resto de títulos, esta etiqueta va en
+              // versalitas en los DOS temas — única excepción confirmada
+              // contra el diseño de referencia (Nocturne normalmente nunca
+              // usa mayúsculas forzadas).
+              textTransform: 'uppercase',
+              fontSize: tema === 'nocturne' ? 13 : 15,
+              letterSpacing: tema === 'nocturne' ? '0.04em' : '0.06em',
+            }}
+          >
             Total
+            <PuntoConfianza valor={factura.confianzaCampos.totalCentavos} />
           </span>
           <button
             type="button"
@@ -897,7 +994,8 @@ export default function Detalle({
               background: 'transparent',
               border: 'none',
               color: 'var(--color-text)',
-              fontSize: 24,
+              fontSize: tema === 'nocturne' ? 22 : 24,
+              letterSpacing: tema === 'nocturne' ? '-0.01em' : undefined,
               cursor: 'pointer',
               padding: 0,
             }}
@@ -924,22 +1022,20 @@ export default function Detalle({
 
       {factura.correcciones.length > 0 && (
         <>
-          <p className="kicker" style={{ color: 'var(--color-text-muted-2)', padding: '14px 0 4px' }}>
+          <p className="kicker" style={{ color: 'var(--color-text-faint)', padding: '12px 0 4px' }}>
             Correcciones manuales · {factura.correcciones.length}
           </p>
-          <div style={{ fontSize: 12 }}>
+          <div style={{ fontSize: 12, color: tema === 'nocturne' ? 'rgba(233, 233, 237, 0.6)' : 'rgba(29, 31, 32, 0.65)' }}>
             {factura.correcciones.map((correccion) => (
-              <div
-                key={correccion.id}
-                style={{ padding: '4px 0', borderBottom: '1px solid var(--color-border-strong)' }}
-              >
-                <span style={{ color: 'var(--color-text-muted)' }}>{correccion.campo}: </span>
-                <span style={{ textDecoration: 'line-through', color: 'var(--color-text-muted-2)' }}>
+              <div key={correccion.id} style={{ padding: '4px 0' }}>
+                {ETIQUETA_CAMPO_CORRECCION[correccion.campo] ?? correccion.campo}:{' '}
+                <span style={{ textDecoration: 'line-through', color: 'var(--color-text-faint)' }}>
                   {correccion.valorExtraidoOriginal}
                 </span>
                 {' → '}
-                <span style={{ fontWeight: 500 }}>{correccion.valorCorregido}</span>
-                <span style={{ color: 'var(--color-text-muted-2)' }}> · {formatearFecha(correccion.corregidoEn)}</span>
+                <strong>{correccion.valorCorregido}</strong>
+                {' · '}
+                {formatearFecha(correccion.corregidoEn, { conAnio: true })}
               </div>
             ))}
           </div>
@@ -950,6 +1046,7 @@ export default function Detalle({
 }
 
 function FilaTotal({
+  tema,
   definicion,
   confianza,
   editando,
@@ -957,6 +1054,7 @@ function FilaTotal({
   onCancelar,
   onGuardar,
 }: {
+  tema: TemaResuelto;
   definicion: DefinicionCampo;
   confianza: number | undefined;
   editando: boolean;
@@ -964,10 +1062,12 @@ function FilaTotal({
   onCancelar: () => void;
   onGuardar: (campo: string, valor: string) => Promise<void>;
 }) {
+  const colorEtiqueta = tema === 'nocturne' ? 'rgba(233, 233, 237, 0.6)' : 'rgba(29, 31, 32, 0.65)';
+
   if (editando) {
     return (
       <div style={{ padding: '3px 0' }}>
-        <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{definicion.etiqueta}</span>
+        <span style={{ color: colorEtiqueta, fontSize: 12 }}>{definicion.etiqueta}</span>
         <EditorCampo definicion={definicion} onGuardar={onGuardar} onCancelar={onCancelar} />
       </div>
     );
@@ -992,7 +1092,7 @@ function FilaTotal({
         cursor: 'pointer',
       }}
     >
-      <span style={{ color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ color: colorEtiqueta, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {definicion.etiqueta}
         {definicion.campoConfianza && <PuntoConfianza valor={confianza} />}
       </span>

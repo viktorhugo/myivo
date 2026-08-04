@@ -1,5 +1,5 @@
 import {
-  ArrowLeft,
+  ChevronLeft,
   Camera,
   Clock,
   Images,
@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Search,
   Layers,
+  Check,
   CircleCheck,
   TriangleAlert,
   XCircle,
@@ -18,10 +19,12 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  Fingerprint,
+  PenLine,
   type LucideIcon,
 } from 'lucide-react';
 import {
-  ArrowLeftIcon,
+  CaretLeftIcon,
   CameraIcon,
   ClockIcon,
   ImagesIcon,
@@ -30,6 +33,7 @@ import {
   DotsThreeVerticalIcon,
   MagnifyingGlassIcon,
   StackIcon,
+  CheckIcon,
   CheckCircleIcon,
   WarningIcon,
   XCircleIcon,
@@ -40,6 +44,8 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ArrowsClockwiseIcon,
+  FingerprintIcon,
+  PenNibIcon,
   type Icon as IconoPhosphor,
 } from '@phosphor-icons/react';
 import type { TemaResuelto } from './useTheme';
@@ -55,6 +61,8 @@ export type NombreIcono =
   | 'buscar'
   | 'capas'
   | 'check'
+  /** Check "pelado" (sin círculo) — badges/indicadores de línea, a diferencia de `check` (con círculo, banner de elegibilidad de Detalle). */
+  | 'check-simple'
   | 'alerta'
   | 'error'
   | 'eliminar'
@@ -63,10 +71,12 @@ export type NombreIcono =
   | 'reporte'
   | 'mostrar-contraseña'
   | 'ocultar-contraseña'
-  | 'reprocesar';
+  | 'reprocesar'
+  | 'huella'
+  | 'firma';
 
 const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
-  volver: ArrowLeft,
+  volver: ChevronLeft,
   camara: Camera,
   reloj: Clock,
   galeria: Images,
@@ -76,6 +86,7 @@ const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
   buscar: Search,
   capas: Layers,
   check: CircleCheck,
+  'check-simple': Check,
   alerta: TriangleAlert,
   error: XCircle,
   eliminar: Trash2,
@@ -85,10 +96,12 @@ const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
   'mostrar-contraseña': Eye,
   'ocultar-contraseña': EyeOff,
   reprocesar: RefreshCw,
+  huella: Fingerprint,
+  firma: PenLine,
 };
 
 const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
-  volver: ArrowLeftIcon,
+  volver: CaretLeftIcon,
   camara: CameraIcon,
   reloj: ClockIcon,
   galeria: ImagesIcon,
@@ -98,6 +111,7 @@ const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
   buscar: MagnifyingGlassIcon,
   capas: StackIcon,
   check: CheckCircleIcon,
+  'check-simple': CheckIcon,
   alerta: WarningIcon,
   error: XCircleIcon,
   eliminar: TrashIcon,
@@ -107,6 +121,8 @@ const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
   'mostrar-contraseña': EyeIcon,
   'ocultar-contraseña': EyeSlashIcon,
   reprocesar: ArrowsClockwiseIcon,
+  huella: FingerprintIcon,
+  firma: PenNibIcon,
 };
 
 /** Trazo delgado estilo Lucide en Industry, estilo Phosphor en Nocturne (research.md § 6). */

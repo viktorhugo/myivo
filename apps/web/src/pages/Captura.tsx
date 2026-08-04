@@ -41,7 +41,7 @@ const ETIQUETA_BADGE_CAPTURA: Record<FacturaDto['estado'], string> = {
 const ICONO_POR_ESTADO: Record<FacturaDto['estado'], NombreIcono> = {
   recibida: 'reloj',
   procesando: 'cargando',
-  extraída: 'check',
+  extraída: 'check-simple',
   necesita_revisión: 'alerta',
   fallida: 'error',
   varias_facturas: 'capas',
@@ -137,17 +137,24 @@ export default function Captura({
 
   return (
     <section style={{ padding: '16px 20px', fontFamily: 'var(--font-body)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button type="button" onClick={onVolver} aria-label="Volver al listado" style={botonIcono}>
           <IconoVolver size={20} strokeWidth={grosorTrazo} />
         </button>
-        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: 26 }}>
+        <h1 className="heading titulo-pantalla" style={{ margin: 0, fontSize: tema === 'nocturne' ? 21 : 26 }}>
           Capturar
         </h1>
       </header>
 
-      <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
-        <label className="btn-primary" style={{ ...botonGrande, opacity: subiendo ? 0.6 : 1 }}>
+      <div style={{ display: 'flex', gap: tema === 'nocturne' ? 12 : 14, marginTop: 16 }}>
+        <label
+          className="btn-primary"
+          style={{
+            ...botonGrande,
+            opacity: subiendo ? 0.6 : 1,
+            background: tema === 'nocturne' ? 'rgba(145, 132, 217, 0.06)' : undefined,
+          }}
+        >
           <MarcasEsquina />
           <input
             ref={inputCamaraRef}
@@ -160,13 +167,16 @@ export default function Captura({
             style={{ display: 'none' }}
           />
           <IconoCamara size={26} />
-          <span className="heading titulo-pantalla" style={{ fontSize: 15, letterSpacing: '0.04em' }}>
+          <span
+            className="heading titulo-pantalla"
+            style={{ fontSize: tema === 'nocturne' ? 13 : 15, letterSpacing: tema === 'nocturne' ? 'normal' : '0.04em' }}
+          >
             {subiendo ? 'Subiendo…' : 'Tomar foto'}
           </span>
         </label>
         <label
           className="card"
-          style={{ ...botonGrande, color: 'var(--color-accent-fg-tint)' }}
+          style={{ ...botonGrande, color: 'var(--color-text)', border: tema === 'nocturne' ? '1px solid var(--color-border)' : undefined }}
         >
           <MarcasEsquina />
           <input
@@ -178,7 +188,10 @@ export default function Captura({
             style={{ display: 'none' }}
           />
           <IconoGaleria size={26} />
-          <span className="heading titulo-pantalla" style={{ fontSize: 15, letterSpacing: '0.04em' }}>
+          <span
+            className="heading titulo-pantalla"
+            style={{ fontSize: tema === 'nocturne' ? 13 : 15, letterSpacing: tema === 'nocturne' ? 'normal' : '0.04em' }}
+          >
             Subir de galería
           </span>
         </label>
@@ -186,7 +199,7 @@ export default function Captura({
 
       {facturas.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '20px 0 6px' }}>
-          <p className="kicker" style={{ margin: 0, color: 'var(--color-text-muted-2)' }}>
+          <p className="kicker" style={{ margin: 0, color: 'var(--color-text-faint)' }}>
             Lote de hoy — {facturas.length} foto{facturas.length === 1 ? '' : 's'}
           </p>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>
@@ -214,7 +227,14 @@ export default function Captura({
         ))}
       </ul>
 
-      <p style={{ fontSize: 12, color: 'var(--color-text-muted)', padding: '14px 2px', textWrap: 'pretty' }}>
+      <p
+        style={{
+          fontSize: 12,
+          color: tema === 'nocturne' ? 'var(--color-text-muted-2)' : 'rgba(29, 31, 32, 0.5)',
+          padding: '14px 2px',
+          textWrap: 'pretty',
+        }}
+      >
         Puedes cerrar esta pantalla — seguimos leyendo tus fotos y te avisamos si algo necesita revisión.
       </p>
     </section>
@@ -263,6 +283,7 @@ function FilaCaptura({
         height: 62,
         objectFit: 'cover',
         border: bordeMiniatura(factura.estado, tema),
+        borderRadius: tema === 'nocturne' ? 6 : 0,
         flex: 'none',
       }}
     />
@@ -300,7 +321,7 @@ function FilaCaptura({
             <button
               type="button"
               onClick={factura.estado === 'varias_facturas' ? onRecapturar : onReintentar}
-              style={botonEnlaceInline}
+              style={{ ...botonEnlaceInline, fontWeight: tema === 'nocturne' ? 500 : 600 }}
             >
               {factura.estado === 'varias_facturas' ? 'Separar y recapturar' : 'Reintentar'}
             </button>
