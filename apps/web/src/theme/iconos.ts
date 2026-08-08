@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Fingerprint,
   PenLine,
+  Copy,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -46,6 +47,7 @@ import {
   ArrowsClockwiseIcon,
   FingerprintIcon,
   PenNibIcon,
+  CopyIcon,
   type Icon as IconoPhosphor,
 } from '@phosphor-icons/react';
 import type { TemaResuelto } from './useTheme';
@@ -73,7 +75,8 @@ export type NombreIcono =
   | 'ocultar-contraseña'
   | 'reprocesar'
   | 'huella'
-  | 'firma';
+  | 'firma'
+  | 'copiar';
 
 const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
   volver: ChevronLeft,
@@ -98,6 +101,7 @@ const ICONOS_INDUSTRY: Record<NombreIcono, LucideIcon> = {
   reprocesar: RefreshCw,
   huella: Fingerprint,
   firma: PenLine,
+  copiar: Copy,
 };
 
 const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
@@ -123,6 +127,7 @@ const ICONOS_NOCTURNE: Record<NombreIcono, IconoPhosphor> = {
   reprocesar: ArrowsClockwiseIcon,
   huella: FingerprintIcon,
   firma: PenNibIcon,
+  copiar: CopyIcon,
 };
 
 /** Trazo delgado estilo Lucide en Industry, estilo Phosphor en Nocturne (research.md § 6). */

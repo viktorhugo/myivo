@@ -110,6 +110,8 @@ pnpm typecheck
 pnpm lint
 ```
 
+**CI** (`.github/workflows/ci.yml`): typecheck + lint + tests de `packages/domain` en cada push a `main` y en cada PR. Deliberadamente NO corre `aislamiento-cuentas.e2e-spec.ts` — necesitaría un Postgres efímero ya migrado (RLS incluido) y un `RESEND_API_KEY` real para el correo de verificación del signup; queda pendiente hasta resolver esas dos credenciales de CI.
+
 ## Despliegue
 
 Diseño previsto (`Caddyfile`, `docker-compose.yml`): Caddy como reverse proxy con TLS automático, sirviendo la SPA compilada y haciendo proxy de `/api/*` hacia el contenedor de la API; PostgreSQL en un volumen Docker; imágenes originales en un volumen Docker aparte (`invoice_images`), nunca sobrescritas (constitution Principio I).
@@ -123,3 +125,5 @@ Diseño previsto (`Caddyfile`, `docker-compose.yml`): Caddy como reverse proxy c
 - Sin telemetría de terceros ni servicios adicionales de pago
 
 Total esperado muy por debajo del límite constitucional.
+
+**Backups**: `scripts/backup-db.sh` — `pg_dump` comprimido del contenedor `postgres` + rotación local (14 días por defecto), pensado para un cron diario en el VPS (ver comentario del script para el crontab exacto). Los backups quedan en `backups/` (ignorado por git — contienen facturas reales) en el mismo VPS; copiarlos también a otro proveedor de almacenamiento queda pendiente, deliberadamente fuera de este script hasta decidir a dónde.

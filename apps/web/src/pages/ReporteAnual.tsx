@@ -22,12 +22,14 @@ interface FilaDesglose {
   atenuada: boolean;
 }
 
+type Agrupacion = 'mensual' | 'trimestral';
+
 /**
  * Agrupa los meses futuros del año en curso en una sola fila atenuada
  * ("Agosto — diciembre") en vez de listarlos sueltos en $0 — solo aplica al
  * año actual; un año anterior ya tiene sus 12 meses en el pasado.
  */
-function construirFilasDesglose(desglosePorMes: DesgloseMesDto[], anio: number): FilaDesglose[] {
+function construirFilasDesgloseMensual(desglosePorMes: DesgloseMesDto[], anio: number): FilaDesglose[] {
   if (anio !== ANIO_ACTUAL) {
     return desglosePorMes.map((mesDelAno) => ({
       etiqueta: formatearNombreMes(mesDelAno.mes),
@@ -57,6 +59,33 @@ function construirFilasDesglose(desglosePorMes: DesgloseMesDto[], anio: number):
     });
   }
   return filas;
+}
+
+const NOMBRES_TRIMESTRE = ['1er trimestre (ene-mar)', '2do trimestre (abr-jun)', '3er trimestre (jul-sep)', '4to trimestre (oct-dic)'];
+
+/** Mismos 12 meses de `reporte.desglosePorMes`, sumados de a 3 — un trimestre entero en el futuro (año en curso) queda atenuado en vez de ocultarse. */
+function construirFilasDesgloseTrimestral(desglosePorMes: DesgloseMesDto[], anio: number): FilaDesglose[] {
+  const mesActual = anio === ANIO_ACTUAL ? new Date().getMonth() + 1 : 12;
+  const filas: FilaDesglose[] = [];
+  for (let trimestre = 0; trimestre < 4; trimestre++) {
+    const mesesDelTrimestre = [trimestre * 3 + 1, trimestre * 3 + 2, trimestre * 3 + 3];
+    const datosDelTrimestre = desglosePorMes.filter((m) => mesesDelTrimestre.includes(m.mes));
+    const conteo = datosDelTrimestre.reduce((suma, m) => suma + m.conteo, 0);
+    const totalCentavos = datosDelTrimestre.reduce((suma, m) => suma + m.totalCentavos, 0);
+    filas.push({
+      etiqueta: NOMBRES_TRIMESTRE[trimestre]!,
+      conteo,
+      totalCentavos,
+      atenuada: conteo === 0 && mesesDelTrimestre[0]! > mesActual,
+    });
+  }
+  return filas;
+}
+
+function construirFilasDesglose(desglosePorMes: DesgloseMesDto[], anio: number, agrupacion: Agrupacion): FilaDesglose[] {
+  return agrupacion === 'trimestral'
+    ? construirFilasDesgloseTrimestral(desglosePorMes, anio)
+    : construirFilasDesgloseMensual(desglosePorMes, anio);
 }
 
 function construirFiltrosDelAnio(anio: number): FiltrosListadoIniciales {
@@ -92,6 +121,7 @@ export default function ReporteAnual({
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<FormatoExportacion | null>(null);
   const [errorExportacion, setErrorExportacion] = useState<string | null>(null);
+  const [agrupacion, setAgrupacion] = useState<Agrupacion>('mensual');
 
   async function exportar(formato: FormatoExportacion) {
     setExportando(formato);
@@ -224,11 +254,29 @@ export default function ReporteAnual({
 
           <div className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
             <MarcasEsquina />
-            <p className="kicker" style={{ margin: '0 0 6px', color: tema === 'nocturne' ? 'var(--color-accent)' : 'var(--color-accent-fg-tint)' }}>
-              Desglose mensual
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+              <p className="kicker" style={{ margin: 0, color: tema === 'nocturne' ? 'var(--color-accent)' : 'var(--color-accent-fg-tint)' }}>
+                Desglose {agrupacion === 'trimestral' ? 'trimestral' : 'mensual'}
+              </p>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  type="button"
+                  className={`chip${agrupacion === 'mensual' ? ' activo' : ''}`}
+                  onClick={() => setAgrupacion('mensual')}
+                >
+                  Mensual
+                </button>
+                <button
+                  type="button"
+                  className={`chip${agrupacion === 'trimestral' ? ' activo' : ''}`}
+                  onClick={() => setAgrupacion('trimestral')}
+                >
+                  Trimestral
+                </button>
+              </div>
+            </div>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, fontSize: tema === 'nocturne' ? 13 : 13 }}>
-              {construirFilasDesglose(reporte.desglosePorMes, anio).map((fila, indice, filas) => {
+              {construirFilasDesglose(reporte.desglosePorMes, anio, agrupacion).map((fila, indice, filas) => {
                 const esUltima = indice === filas.length - 1;
                 const colorAtenuado = tema === 'nocturne' ? 'rgba(233, 233, 237, 0.35)' : 'rgba(29, 31, 32, 0.4)';
                 return (

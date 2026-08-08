@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    name: typecheck + lint + tests de dominio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # apps/api importa tipos de @prisma/client generados en node_modules —
+      # sin este paso, typecheck/lint fallan con tipos de Prisma ausentes o
+      # desactualizados (no hay postinstall que lo haga automático).
+      - run: pnpm --filter @myivo/api prisma:generate
+
+      - run: pnpm typecheck
+      - run: pnpm lint
+
+      # Solo packages/domain: es el único paquete con tests que no requieren
+      # una base de datos real (constitution Principio VIII). El test de
+      # aislamiento entre cuentas de apps/api (aislamiento-cuentas.e2e-spec.ts)
+      # necesita Postgres ya migrado (RLS incluido) y un RESEND_API_KEY real
+      # para el correo de verificación en el signup — deliberadamente fuera
+      # de este workflow por ahora, hasta wiring aparte con esos dos.
+      - run: pnpm exec turbo run test --filter=@myivo/domain

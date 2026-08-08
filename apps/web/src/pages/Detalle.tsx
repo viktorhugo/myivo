@@ -322,6 +322,44 @@ function EditorCampo({
   );
 }
 
+/** El CUFE completo (~96 caracteres) no cabe en una línea — se ve truncado (el botón de copiar siempre manda el valor completo, así que no se pierde nada). */
+function truncarCufe(valor: string): string {
+  if (valor.length <= 20) return valor;
+  return `${valor.slice(0, 8)}...${valor.slice(-6)}`;
+}
+
+/** Botón de copiar junto al valor del CUFE — separado del botón "tocar para editar" para no anidar un botón dentro de otro. */
+function BotonCopiarCufe({ tema, valor }: { tema: TemaResuelto; valor: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const Icono = obtenerIcono(copiado ? 'check-simple' : 'copiar', tema);
+
+  async function copiar() {
+    await navigator.clipboard.writeText(valor);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copiar}
+      aria-label={copiado ? 'CUFE copiado' : 'Copiar CUFE'}
+      title={copiado ? 'CUFE copiado' : 'Copiar CUFE'}
+      style={{
+        flex: 'none',
+        background: 'transparent',
+        border: 'none',
+        color: copiado ? 'var(--color-estado-extraida-fg)' : 'var(--color-text-muted)',
+        cursor: 'pointer',
+        padding: 4,
+        marginTop: 1,
+      }}
+    >
+      <Icono size={15} strokeWidth={tema === 'nocturne' ? 1.7 : 1.5} />
+    </button>
+  );
+}
+
 /** Celda de la rejilla de campos clave — toda la celda es tocable para editar. */
 function CeldaCampo({
   definicion,
@@ -343,9 +381,12 @@ function CeldaCampo({
   onGuardar: (campo: string, valor: string) => Promise<void>;
 }) {
   const IconoEditar = obtenerIcono('editar', tema);
+  // El CUFE ocupa las 2 columnas de la rejilla y va en fuente monoespaciada
+  // — es un identificador largo tipo hash, no un dato de lectura normal.
+  const esCufe = definicion.campoPublico === 'cufe';
 
   return (
-    <div className="celda-campo">
+    <div className="celda-campo" style={esCufe ? { gridColumn: '1 / 3' } : undefined}>
       <div className="etiqueta-campo">
         {definicion.etiqueta}
         {definicion.campoConfianza && <PuntoConfianza valor={confianza} />}
@@ -353,9 +394,39 @@ function CeldaCampo({
       </div>
       {editando ? (
         <EditorCampo definicion={definicion} onGuardar={onGuardar} onCancelar={onCancelar} />
+      ) : esCufe && definicion.valorEdicion ? (
+        // Fila propia (no anidada en el botón) — un botón dentro de otro
+        // botón no es HTML válido, así que "copiar" va como hermano de
+        // "tocar para editar", no adentro.
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+          <button type="button" onClick={onEditar} className="valor-campo" title={definicion.valorMostrado} style={{ flex: 1 }}>
+            <span style={{ wordBreak: 'break-all', fontFamily: 'ui-monospace, Menlo, monospace' }}>
+              {truncarCufe(definicion.valorMostrado)}
+              {correccion && <span className="badge-corregido">Corregido</span>}
+            </span>
+            {correccion && (
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 11,
+                  color: 'var(--color-text-faint)',
+                  textDecoration: 'line-through',
+                }}
+              >
+                original: {correccion.valorExtraidoOriginal}
+              </span>
+            )}
+          </button>
+          <BotonCopiarCufe tema={tema} valor={definicion.valorEdicion} />
+        </div>
       ) : (
         <button type="button" onClick={onEditar} className="valor-campo" title="Tocar para corregir">
-          <span style={{ wordBreak: 'break-word' }}>
+          <span
+            style={{
+              wordBreak: esCufe ? 'break-all' : 'break-word',
+              fontFamily: esCufe ? 'ui-monospace, Menlo, monospace' : undefined,
+            }}
+          >
             {definicion.valorMostrado}
             {correccion && <span className="badge-corregido">Corregido</span>}
           </span>
@@ -656,7 +727,7 @@ export default function Detalle({
   const [error, setError] = useState<string | null>(null);
   const [reprocesando, setReprocesando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
-  const [fotoVisible, setFotoVisible] = useState(false);
+  const [fotoVisible, setFotoVisible] = useState(true);
   const [campoEnEdicion, setCampoEnEdicion] = useState<string | null>(null);
 
   async function cargar() {

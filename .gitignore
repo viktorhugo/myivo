@@ -31,3 +31,6 @@ coverage/
 
 # Datos locales (fotos de facturas en desarrollo — nunca se versionan)
 apps/api/data/
+
+# Backups de la base de datos (scripts/backup-db.sh) — contienen facturas reales.
+/backups/
