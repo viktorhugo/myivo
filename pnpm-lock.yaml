@@ -74,6 +74,9 @@ importers:
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1
       heic-decode:
         specifier: ^2.1.0
         version: 2.1.0

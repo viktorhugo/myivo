@@ -50,6 +50,18 @@ interface ArchivoDerivadoJson {
   creadoEn: string;
 }
 
+/**
+ * Frontera BigInt→number (specs/007-despliegue-produccion, US6,
+ * research.md § 8): las columnas monetarias son `BigInt` en Postgres (corrige
+ * el desborde de `Int` a ~$21,4M COP), pero el dominio sigue viendo `number`
+ * — seguro porque cualquier monto real, incluso "muy superior a 21,4
+ * millones", queda muy por debajo de `Number.MAX_SAFE_INTEGER` expresado en
+ * centavos. Ningún llamador de esta función MUST convertir a mano.
+ */
+function centavosANumero(valor: bigint | null): number | null {
+  return valor !== null ? Number(valor) : null;
+}
+
 /** Exportado para reutilizar en DuplicateMatchingService (mapea las facturas candidatas embebidas). */
 export function aDominio(fila: FacturaPrisma): Factura {
   const derivadosJson = fila.derivados as unknown as ArchivoDerivadoJson[];
@@ -67,11 +79,11 @@ export function aDominio(fila: FacturaPrisma): Factura {
     comercioNIT: fila.comercioNIT,
     fechaHoraCompra: fila.fechaHoraCompra,
     moneda: fila.moneda,
-    subtotalCentavos: fila.subtotalCentavos,
+    subtotalCentavos: centavosANumero(fila.subtotalCentavos),
     ivaPorTarifa: fila.ivaPorTarifa as unknown as IvaTarifa[],
-    impuestoConsumoCentavos: fila.impuestoConsumoCentavos,
-    propinaCentavos: fila.propinaCentavos,
-    totalCentavos: fila.totalCentavos,
+    impuestoConsumoCentavos: centavosANumero(fila.impuestoConsumoCentavos),
+    propinaCentavos: centavosANumero(fila.propinaCentavos),
+    totalCentavos: centavosANumero(fila.totalCentavos),
     medioPago: fila.medioPago,
     adquirienteNombre: fila.adquirienteNombre,
     adquirienteIdentificacion: fila.adquirienteIdentificacion,
@@ -350,7 +362,11 @@ export class FacturaRepository {
       where.comercioNombre = { contains: filtros.comercio, mode: 'insensitive' };
     }
     if (filtros.montoMin !== undefined || filtros.montoMax !== undefined) {
-      const filtroMonto: Prisma.IntNullableFilter = {};
+      // BigIntNullableFilter (no IntNullableFilter, US6) — acepta `number`
+      // directo para gte/lte, sin conversión manual a BigInt: el filtro
+      // viene de un query param, siempre muy por debajo de
+      // Number.MAX_SAFE_INTEGER (research.md § 8).
+      const filtroMonto: Prisma.BigIntNullableFilter = {};
       if (filtros.montoMin !== undefined) filtroMonto.gte = filtros.montoMin;
       if (filtros.montoMax !== undefined) filtroMonto.lte = filtros.montoMax;
       where.totalCentavos = filtroMonto;
@@ -386,7 +402,7 @@ export class FacturaRepository {
     return {
       items: filas.map(aDominioConValidacion),
       conteo,
-      sumaTotal: agregado._sum.totalCentavos ?? 0,
+      sumaTotal: centavosANumero(agregado._sum.totalCentavos) ?? 0,
     };
   }
 
@@ -397,8 +413,8 @@ export class FacturaRepository {
       facturaId: fila.facturaId,
       descripcion: fila.descripcion,
       cantidad: fila.cantidad,
-      valorUnitarioCentavos: fila.valorUnitarioCentavos,
-      valorTotalCentavos: fila.valorTotalCentavos,
+      valorUnitarioCentavos: centavosANumero(fila.valorUnitarioCentavos),
+      valorTotalCentavos: centavosANumero(fila.valorTotalCentavos),
       nivelConfianza: fila.nivelConfianza,
     }));
   }

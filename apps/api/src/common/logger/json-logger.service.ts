@@ -23,12 +23,13 @@ export class JsonLoggerService implements LoggerService {
   }
 
   private write(level: LogLevel, message: unknown, context?: string, trace?: string): void {
+    const traceFinal = trace ?? (message instanceof Error ? message.stack : undefined);
     const entry = {
       timestamp: new Date().toISOString(),
       level,
       context,
-      message: typeof message === 'string' ? message : JSON.stringify(message),
-      trace,
+      message: this.resolverMensaje(message),
+      ...(traceFinal !== undefined ? { trace: traceFinal } : {}),
     };
     const line = `${JSON.stringify(entry)}\n`;
     if (level === 'error') {
@@ -36,5 +37,23 @@ export class JsonLoggerService implements LoggerService {
     } else {
       process.stdout.write(line);
     }
+  }
+
+  /**
+   * `JSON.stringify(error)` sobre un `Error` da `{}` — `.message` no es una
+   * propiedad propia enumerable. Sin este caso especial, cualquier error
+   * lanzado antes de tener un request HTTP que pase por
+   * GlobalExceptionFilter (p. ej. `validateEnv()` fallando al arranque,
+   * FR-005) se registraba como un objeto vacío, sin el mensaje claro que el
+   * propio error ya traía.
+   */
+  private resolverMensaje(message: unknown): string {
+    if (typeof message === 'string') {
+      return message;
+    }
+    if (message instanceof Error) {
+      return message.message;
+    }
+    return JSON.stringify(message);
   }
 }

@@ -9,6 +9,7 @@ import {
   verificarCuadreMonetario,
   type CufeOrigen,
   type ExtractedInvoiceData,
+  type Factura,
   type InvoiceExtractor,
 } from '@myivo/domain';
 import type { Env } from '../../config/env.schema';
@@ -18,8 +19,10 @@ import { DuplicateMatchingService } from '../invoices/duplicate-matching.service
 import { FacturaRepository } from '../invoices/factura.repository';
 import { FileStorageService } from '../invoices/file-storage.service';
 import { decodificarCufeDesdeQr } from './cufe-decoder';
+import { EXTRACTION_CONCURRENCY_LIMITER } from './extraction-concurrency.token';
 import { VERSION_PROMPT_EXTRACCION } from './extraction-prompt';
 import { INVOICE_EXTRACTOR } from './invoice-extractor.token';
+import type { Limitador } from './limitador-concurrencia';
 import { esPdf, renderizarPrimeraPagina } from './pdf-decoder';
 
 /**
@@ -53,6 +56,7 @@ export class ExtractionProcessor {
     private readonly duplicateMatching: DuplicateMatchingService,
     private readonly usuarioService: UsuarioService,
     private readonly txHost: TransactionHost<PrismaTransactionalAdapter>,
+    @Inject(EXTRACTION_CONCURRENCY_LIMITER) private readonly limite: Limitador,
     configService: ConfigService<Env, true>,
   ) {
     const proveedor = configService.get('EXTRACTION_PROVIDER', { infer: true });
@@ -69,6 +73,13 @@ export class ExtractionProcessor {
    * responder para que el frontend vea el estado intermedio en vez de solo
    * el resultado final), repetirla lanzaría por ser `procesando -> procesando`,
    * una transición no definida en la máquina de estados.
+   *
+   * Esa transición corre SIN el límite de concurrencia de abajo — a
+   * propósito (FR-011/FR-014, specs/007-despliegue-produccion): en un lote
+   * grande, el usuario debe ver las 80 facturas pasar a "procesando" de
+   * inmediato, no ver 77 quedarse en "recibida" esperando su turno. Solo la
+   * llamada cara al proveedor de extracción (`procesarExtraccion`) respeta
+   * `EXTRACTION_MAX_CONCURRENCY`.
    */
   async procesar(facturaId: string, usuarioId: string): Promise<void> {
     const actual = await aislarPorUsuario(this.txHost, usuarioId, async () => {
@@ -79,6 +90,14 @@ export class ExtractionProcessor {
       return factura;
     });
 
+    return this.limite(() => this.procesarExtraccion(facturaId, usuarioId, actual));
+  }
+
+  private async procesarExtraccion(
+    facturaId: string,
+    usuarioId: string,
+    actual: Factura | null,
+  ): Promise<void> {
     try {
       const factura =
         actual ??

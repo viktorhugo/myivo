@@ -174,12 +174,20 @@ model Factura {
   fechaHoraCompra DateTime?
   moneda          String    @default("COP")
 
-  subtotalCentavos        Int?
-  /// Array de { tarifa, valorCentavos } — ver IvaTarifa en el dominio.
+  /// BigInt (no Int): Int (4 bytes) desborda en $21.474.836,47 COP — bug real
+  /// corregido en specs/007-despliegue-produccion (US6, FR-022/023/024). La
+  /// conversión BigInt↔number queda contenida en factura.repository.ts
+  /// (aDominio/guardarResultadoExtraccion/aplicarCorreccion) — el dominio
+  /// sigue viendo `number` (research.md § 8: seguro porque cualquier monto
+  /// real, incluso "muy superior a 21,4 millones", queda muy por debajo de
+  /// Number.MAX_SAFE_INTEGER expresado en centavos).
+  subtotalCentavos        BigInt?
+  /// Array de { tarifa, valorCentavos } — ver IvaTarifa en el dominio. Nunca
+  /// tuvo el límite de arriba: vive en una columna Json, no en un Int fijo.
   ivaPorTarifa            Json @default("[]")
-  impuestoConsumoCentavos Int?
-  propinaCentavos         Int?
-  totalCentavos           Int?
+  impuestoConsumoCentavos BigInt?
+  propinaCentavos         BigInt?
+  totalCentavos           BigInt?
 
   medioPago                 MedioPago?
   adquirienteNombre         String?
@@ -222,8 +230,9 @@ model ItemFactura {
 
   descripcion           String?
   cantidad              Float?
-  valorUnitarioCentavos Int?
-  valorTotalCentavos    Int?
+  /// BigInt — mismo motivo que Factura.totalCentavos (US6, research.md § 8).
+  valorUnitarioCentavos BigInt?
+  valorTotalCentavos    BigInt?
   nivelConfianza        Float   @default(0)
 
   @@map("items_factura")
@@ -323,7 +332,8 @@ model ValidacionDian {
 
   /// Copia de los campos de Factura en el momento de la validación — nunca datos leídos del portal DIAN (research.md § 2).
   snapshotComercioNombre  String?
-  snapshotTotalCentavos   Int?
+  /// BigInt — mismo motivo que Factura.totalCentavos (specs/007-despliegue-produccion, US6): debe poder guardar el snapshot de una factura con un total grande sin truncarlo.
+  snapshotTotalCentavos   BigInt?
   snapshotMoneda          String
   snapshotFechaHoraCompra DateTime?
   snapshotCufe            String

@@ -15,6 +15,20 @@ interface ResolvedError {
   details?: unknown;
 }
 
+/**
+ * `FilesInterceptor` ya traduce los errores de Multer a `HttpException`
+ * (@nestjs/platform-express/multer/multer/multer.utils.js): `LIMIT_FILE_SIZE`
+ * → `PayloadTooLargeException`, `LIMIT_FILE_COUNT` → `BadRequestException` —
+ * ambos con el texto en inglés propio de Multer ("File too large", "Too many
+ * files"). Sin este mapa caerían en el branch genérico de HttpException de
+ * abajo con ese texto tal cual — técnicamente un mensaje claro (FR-012/013),
+ * pero inconsistente con el resto de la app, que es toda en español.
+ */
+const MENSAJE_POR_ERROR_DE_MULTER: Record<string, string> = {
+  'File too large': 'El archivo excede el tamaño máximo permitido por subida.',
+  'Too many files': 'El lote excede la cantidad máxima de archivos permitida por subida.',
+};
+
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
@@ -58,9 +72,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         typeof body === 'string'
           ? body
           : ((body as { message?: string | string[] }).message ?? exception.message);
+      const mensajeFinal = Array.isArray(message) ? message.join(', ') : message;
       return {
         statusCode: exception.getStatus(),
-        message: Array.isArray(message) ? message.join(', ') : message,
+        message: MENSAJE_POR_ERROR_DE_MULTER[mensajeFinal] ?? mensajeFinal,
       };
     }
 

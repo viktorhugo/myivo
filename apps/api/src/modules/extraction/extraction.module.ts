@@ -7,8 +7,10 @@ import { ClaudeInvoiceExtractorAdapter } from './claude-invoice-extractor.adapte
 import { OpenAIInvoiceExtractorAdapter } from './openai-invoice-extractor.adapter';
 import { GeminiInvoiceExtractorAdapter } from './gemini-invoice-extractor.adapter';
 import { OpenAICompatibleInvoiceExtractorAdapter } from './openai-compatible-invoice-extractor.adapter';
+import { EXTRACTION_CONCURRENCY_LIMITER } from './extraction-concurrency.token';
 import { ExtractionProcessor } from './extraction.processor';
 import { INVOICE_EXTRACTOR } from './invoice-extractor.token';
+import { crearLimitador, type Limitador } from './limitador-concurrencia';
 
 /**
  * Decide, según `EXTRACTION_PROVIDER`, cuál adaptador concreto se inyecta
@@ -47,12 +49,23 @@ function crearExtractor(configService: ConfigService<Env, true>): InvoiceExtract
   }
 }
 
+/** FR-011 (research.md § 4): limita cuántas extracciones corren a la vez — ver limitador-concurrencia.ts. */
+function crearLimitadorConcurrencia(configService: ConfigService<Env, true>): Limitador {
+  const concurrencia = configService.get('EXTRACTION_MAX_CONCURRENCY', { infer: true });
+  return crearLimitador(concurrencia);
+}
+
 @Module({
   imports: [forwardRef(() => InvoicesModule)],
   providers: [
     {
       provide: INVOICE_EXTRACTOR,
       useFactory: crearExtractor,
+      inject: [ConfigService],
+    },
+    {
+      provide: EXTRACTION_CONCURRENCY_LIMITER,
+      useFactory: crearLimitadorConcurrencia,
       inject: [ConfigService],
     },
     ExtractionProcessor,

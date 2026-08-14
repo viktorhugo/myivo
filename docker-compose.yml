@@ -13,13 +13,82 @@ services:
     ports:
       # Solo accesible desde el propio VPS (psql/administración), nunca público.
       - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myivo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - apps/api/.env
+    environment:
+      # Las 3 ganan sobre lo que traiga apps/api/.env — ninguna es una
+      # elección de negocio del usuario, las determina esta topología de
+      # compose (que solo existe para correr en producción; el flujo de
+      # desarrollo usa `pnpm --filter @myivo/api dev` directo en el host, sin
+      # estos Dockerfiles): IMAGE_STORAGE_PATH debe coincidir con el punto de
+      # montaje del volumen `invoice_images` de abajo (constitution Principio
+      # I); DATABASE_URL debe apuntar al servicio `postgres` por nombre
+      # (resolución DNS interna de compose), nunca a `localhost`; NODE_ENV
+      # fijo en production activa el rate limiter de Better Auth (FR-008,
+      # research.md § 3) sin depender de que quien despliegue se acuerde de
+      # cambiarlo a mano en apps/api/.env.
+      IMAGE_STORAGE_PATH: /data/invoices
+      DATABASE_URL: postgresql://${POSTGRES_USER:-myivo}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-myivo}
+      NODE_ENV: production
+    volumes:
+      - invoice_images:/data/invoices
+    networks:
+      - myivo_internal
+    # Sin `ports:` — nunca expuesta directamente al host, solo alcanzable por
+    # `caddy` a través de `myivo_internal` (mismo criterio que la BD, FR-004).
+
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados TLS y estado interno de Caddy — sin esto, cada
+      # `docker compose up` que recree el contenedor volvería a pedir un
+      # certificado nuevo a Let's Encrypt (y sus límites de tasa).
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - myivo_internal
 
 volumes:
   postgres_data:
-  # Facturas originales + derivados (constitution Principio I). Se monta en el
-  # servicio de apps/api cuando ese contenedor se agregue a este compose.
+  # Facturas originales + derivados (constitution Principio I). Montado en
+  # `api` (arriba) en IMAGE_STORAGE_PATH=/data/invoices.
   invoice_images:
+  caddy_data:
+  caddy_config:
 
 networks:
   myivo_internal:
     driver: bridge
+    ipam:
+      config:
+        # Fija la subred en vez de dejarla a la asignación automática de
+        # Docker — así apps/api/src/modules/auth/auth.ts puede confiar en
+        # `advanced.ipAddress.trustedProxies` con este valor exacto para
+        # resolver la IP real del cliente detrás de `caddy` (research.md § 3),
+        # sin depender de que X-Forwarded-For traiga un único valor.
+        - subnet: 172.28.0.0/16

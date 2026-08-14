@@ -103,6 +103,32 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
     trustedOrigins: [env.WEB_ORIGIN],
     socialProviders: construirProveedoresSociales(env),
 
+    // El rate limiter de Better Auth ya viene activo en producción por
+    // defecto (`enabled: options.rateLimit?.enabled ?? isProduction`,
+    // create-context.mjs) y ya trae una regla especial para /sign-in* (10s/3
+    // intentos, api/rate-limiter/index.mjs) — FR-008 no necesita una
+    // librería nueva. Se ajusta /sign-in/email al valor sugerido en las
+    // Assumptions del spec (5 intentos / 15 min): más tolerante a un usuario
+    // real que se equivoca de contraseña en el celular, sin dejar de
+    // bloquear fuerza bruta sostenida (specs/007-despliegue-produccion/
+    // research.md § 3).
+    rateLimit: {
+      customRules: {
+        '/sign-in/email': { window: 900, max: 5 },
+      },
+    },
+
+    advanced: {
+      ipAddress: {
+        // Misma subred fija en docker-compose.yml (myivo_internal) — sin
+        // esto, la resolución de IP real del cliente detrás de Caddy solo
+        // funciona si X-Forwarded-For trae un único valor (comportamiento
+        // por defecto de Caddy hoy, pero no garantizado si en el futuro se
+        // agrega otro proxy delante, p. ej. un CDN).
+        trustedProxies: ['172.28.0.0/16'],
+      },
+    },
+
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,

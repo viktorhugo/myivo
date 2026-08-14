@@ -1,0 +1,23 @@
+# apps/web — build de la SPA (vite build) + Caddy sirviéndola. Un solo
+# Dockerfile porque nadie corre la imagen intermedia de Node por su cuenta:
+# su única salida útil es `dist/`, y ésta termina copiada directo a la imagen
+# final de Caddy (specs/007-despliegue-produccion/research.md § 10) — evita un
+# proceso Node adicional solo para servir archivos estáticos que Caddy ya
+# puede servir gratis mientras hace TLS.
+
+FROM node:22-bookworm-slim AS build
+RUN corepack enable
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/domain/package.json packages/domain/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm --filter @myivo/web build
+
+FROM caddy:2-alpine
+COPY --from=build /app/apps/web/dist /srv/web
+COPY Caddyfile /etc/caddy/Caddyfile

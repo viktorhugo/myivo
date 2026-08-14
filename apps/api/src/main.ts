@@ -19,6 +19,14 @@ async function bootstrap(): Promise<void> {
   });
   const configService = app.get<ConfigService<Env, true>>(ConfigService);
 
+  // Detrás de Caddy (reverse proxy) en producción: sin esto, Express ve cada
+  // request como si viniera del propio Caddy, no del cliente real — rompe
+  // `req.ip`/logs con contexto útil (FR-028) y la resolución de IP que usa
+  // el rate limiter de Better Auth (specs/007-despliegue-produccion/
+  // research.md § 2/3). `1` = confiar en un solo hop (Caddy), no en toda la
+  // cadena — no hay más proxies detrás en este despliegue de un solo VPS.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   const auth = app.get<Auth>(AUTH);

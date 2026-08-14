@@ -44,6 +44,13 @@ const baseEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
   IMAGE_STORAGE_PATH: z.string().min(1).default('./data/invoices'),
 
+  // specs/007-despliegue-produccion — FR-012/FR-013 (US3): un lote grande
+  // (p. ej. 80 archivos) no debe poder tumbar el servidor por tamaño o
+  // cantidad sin límite. Defaults generosos para fotos de celular (spec.md
+  // § Assumptions), configurables sin cambiar código.
+  UPLOAD_MAX_FILE_SIZE_MB: z.coerce.number().int().positive().default(20),
+  UPLOAD_MAX_FILES_PER_BATCH: z.coerce.number().int().positive().default(100),
+
   // specs/006-multi-usuario/research.md § 1 — Better Auth. Reemplaza
   // SESSION_SECRET/AUTH_USERNAME/AUTH_PASSWORD_HASH: ya no hay una sola
   // cuenta fija, cualquiera se registra (FR-001).
@@ -74,6 +81,11 @@ const baseEnvSchema = z.object({
 
   EXTRACTION_PROVIDER: extractionProviderSchema.default('claude'),
   EXTRACTION_MODEL: z.string().min(1).default('claude-sonnet-5'),
+  // FR-011 (US3): cuántas extracciones corren a la vez como máximo — sin
+  // esto, un lote de N archivos dispara N llamadas simultáneas al proveedor
+  // de extracción (research.md § 4). Conservador por defecto: personal, un
+  // solo proceso Node, no hace falta agresivo.
+  EXTRACTION_MAX_CONCURRENCY: z.coerce.number().int().positive().default(3),
 
   // Cada API key es opcional a nivel de forma: solo se exige la del
   // proveedor activo (ver superRefine abajo) — así no hace falta configurar

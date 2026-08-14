@@ -10,7 +10,9 @@ function aDominio(fila: ValidacionDianPrisma): ValidacionDian {
     metodo: fila.metodo as MetodoValidacionDian,
     resultado: fila.resultado as ResultadoValidacionDian,
     snapshotComercioNombre: fila.snapshotComercioNombre,
-    snapshotTotalCentavos: fila.snapshotTotalCentavos,
+    // BigInt→number en la frontera (research.md § 8) — el dominio sigue
+    // viendo `number`, igual que factura.repository.ts.
+    snapshotTotalCentavos: fila.snapshotTotalCentavos !== null ? Number(fila.snapshotTotalCentavos) : null,
     snapshotMoneda: fila.snapshotMoneda,
     snapshotFechaHoraCompra: fila.snapshotFechaHoraCompra,
     snapshotCufe: fila.snapshotCufe,

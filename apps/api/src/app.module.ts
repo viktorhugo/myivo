@@ -14,6 +14,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { ExtractionModule } from './modules/extraction/extraction.module';
 import { ValidacionDianModule } from './modules/validacion-dian/validacion-dian.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
+import { ArranqueModule } from './modules/arranque/arranque.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { ReportesModule } from './modules/reportes/reportes.module';
     ExtractionModule,
     ValidacionDianModule,
     ReportesModule,
+    ArranqueModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: RlsTransactionInterceptor }],

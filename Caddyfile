@@ -7,8 +7,12 @@
 {$APP_DOMAIN} {
 	encode gzip
 
-	# Backend NestJS — se activa cuando el servicio `api` se agregue a docker-compose.yml.
-	handle /api/* {
+	# Backend NestJS. handle_path (no handle) quita el prefijo /api antes de
+	# reenviar — ningún @Controller() de apps/api está montado bajo /api (ver
+	# el comentario de apps/api/src/main.ts): con `handle` a secas, cada
+	# request llegaría como /api/invoices y NestJS respondería 404 porque su
+	# ruta real es /invoices.
+	handle_path /api/* {
 		reverse_proxy api:3000
 	}
 

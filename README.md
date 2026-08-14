@@ -114,9 +114,11 @@ pnpm lint
 
 ## Despliegue
 
-Diseño previsto (`Caddyfile`, `docker-compose.yml`): Caddy como reverse proxy con TLS automático, sirviendo la SPA compilada y haciendo proxy de `/api/*` hacia el contenedor de la API; PostgreSQL en un volumen Docker; imágenes originales en un volumen Docker aparte (`invoice_images`), nunca sobrescritas (constitution Principio I).
+`docker compose up -d --build` levanta el sistema completo en un VPS: Postgres (solo accesible desde el propio servidor), la API (`Dockerfile.api`), y Caddy (`Dockerfile.web`) sirviendo la SPA compilada y haciendo proxy de `/api/*` hacia la API con HTTPS automático (Let's Encrypt). Las imágenes originales viven en el volumen Docker `invoice_images`, nunca sobrescritas (constitution Principio I). Las migraciones de Prisma se aplican solas al arrancar el contenedor `api` — no hay ningún paso manual de base de datos.
 
-**Estado actual**: `docker-compose.yml` solo define el servicio `postgres` (usado también en desarrollo). Los servicios `api` y `web`/Caddy en compose son trabajo pendiente — hoy la API se ejecuta directamente (`node dist/main.js`) fuera de Docker. Antes de desplegar en el VPS real falta: agregar esos dos servicios al compose, montar `invoice_images` en el contenedor de `api`, fijar `APP_DOMAIN`/`CADDY_ACME_EMAIL` en el `.env` de la raíz, y actualizar `BETTER_AUTH_URL`/`WEB_ORIGIN` en `apps/api/.env` al dominio real (dejan de ser `localhost`).
+Procedimiento completo, variable por variable, y qué validar en cada paso: [specs/007-despliegue-produccion/quickstart.md](specs/007-despliegue-produccion/quickstart.md).
+
+**Estado actual**: User Story 1 (levantar el sistema completo) implementada y probada localmente con `docker compose up`/`docker compose run` — build de ambas imágenes, aplicación de migraciones, arranque de NestJS y verificación de fail-fast ante configuración inválida, todo confirmado funcionando. Pendiente de un VPS real para confirmar SC-001 (HTTPS accesible en <15 min) de punta a punta. El resto de las historias de `specs/007-despliegue-produccion/` (sesión sobreviviendo a redespliegues, límites de lote, recuperación de facturas atascadas, respaldo cifrado externo, montos sin tope, índices de escala, endpoint de salud) quedan para las siguientes iteraciones — ver `specs/007-despliegue-produccion/tasks.md`.
 
 **Costo operativo estimado** (constitution Principio VII, objetivo <15 USD/mes):
 

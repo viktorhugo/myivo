@@ -1,0 +1,62 @@
+# apps/api — build multi-stage sobre Debian (glibc), no Alpine: sharp, argon2
+# y el motor de Prisma tienen mejor soporte de binarios prebuilt en glibc que
+# en musl, evitando compilación nativa a build-time en un VPS pequeño
+# (specs/007-despliegue-produccion/research.md § 10).
+#
+# Se copia /app completo (node_modules incluido) del stage de build al de
+# runtime en vez de podar dependencias de forma selectiva — pnpm resuelve
+# @myivo/domain y el cliente generado de Prisma (.prisma/client) con symlinks
+# internos no triviales de reconstruir a mano; copiar todo es más simple y
+# confiable para una app personal en un solo VPS, donde el tamaño de imagen no
+# es la restricción (research.md § 10 prioriza confiabilidad sobre tamaño).
+
+FROM node:22-bookworm-slim AS build
+# `bookworm-slim` no trae libssl instalado — sin esto, `prisma generate`
+# no logra detectar la versión de OpenSSL y avisa que puede no funcionar
+# como se espera (verificado: el aviso aparece si se omite este paso).
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+RUN corepack enable
+WORKDIR /app
+
+# Copiar solo los manifiestos primero — cachea la capa de `pnpm install`
+# mientras no cambien las dependencias, aunque sí cambie el código fuente.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/domain/package.json packages/domain/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+# El cliente de Prisma MUST generarse antes de compilar — apps/api importa
+# tipos de @prisma/client que no existen hasta este paso (mismo orden que ya
+# usa .github/workflows/ci.yml).
+RUN pnpm --filter @myivo/api prisma:generate
+
+# `turbo run build --filter=@myivo/api` construye primero @myivo/domain
+# (dependsOn: ["^build"] en turbo.json) y luego apps/api — @myivo/domain
+# resuelve en runtime por su campo "main" (./dist/index.js), así que sin este
+# orden el import fallaría.
+RUN pnpm exec turbo run build --filter=@myivo/api
+
+FROM node:22-bookworm-slim AS runtime
+# Mismo motivo que en el stage de build — el motor de consultas de Prisma
+# necesita libssl en tiempo de ejecución, no solo al generar el cliente.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+# `corepack enable` es por-imagen, no por-archivo — el stage de runtime no
+# hereda el del stage de build (cada FROM arranca de cero), solo lo que se
+# copia explícitamente vía COPY --from.
+RUN corepack enable
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /app /app
+WORKDIR /app/apps/api
+RUN chmod +x docker-entrypoint.sh
+
+EXPOSE 3000
+
+# Aplica migraciones de Prisma pendientes antes de servir tráfico (FR-002) —
+# ver docker-entrypoint.sh.
+CMD ["./docker-entrypoint.sh"]
