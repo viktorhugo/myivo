@@ -46,6 +46,12 @@ services:
       NODE_ENV: production
     volumes:
       - invoice_images:/data/invoices
+      # scripts/backup-db.sh corre en el HOST (fuera de Docker) y escribe
+      # backups/ultimo-estado.json ahí — sin este bind mount, GET /health
+      # (que sí corre dentro de este contenedor) no podría leerlo. Solo
+      # lectura: este contenedor nunca genera respaldos, solo reporta su
+      # último resultado (FR-021, research.md § 13).
+      - ./backups:/backups:ro
     networks:
       - myivo_internal
     # Sin `ports:` — nunca expuesta directamente al host, solo alcanzable por

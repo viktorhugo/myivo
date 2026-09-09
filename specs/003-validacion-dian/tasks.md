@@ -20,7 +20,7 @@
 
 **Purpose**: dependencia nueva identificada en research.md § 4 — nada de esto depende de ninguna historia.
 
-- [ ] T001 Instalar `exceljs` en `apps/api/package.json` (research.md § 4 — parseo del Excel de conciliación, US2)
+- [X] T001 Instalar `exceljs` en `apps/api/package.json` (research.md § 4 — parseo del Excel de conciliación, US2)
 
 ---
 

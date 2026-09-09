@@ -2,19 +2,11 @@
 
 Satisface FR-027 (US8) y FR-021/SC-006 (estado del último respaldo, reutilizando este mismo endpoint — research.md § 13).
 
-## Estado actual
+## Estado
 
-```ts
-// apps/api/src/app.controller.ts
-@Get('health')
-health(): { status: 'ok' } {
-  return { status: 'ok' };
-}
-```
+Implementado tal como se planeó abajo (T027/T041, `apps/api/src/app.controller.ts`) — verificado con Docker real deteniendo Postgres (`docker compose stop postgres`): `/health` nunca dejó de responder, `baseDeDatos` pasó a `"error"` y volvió a `"ok"` al recuperar la conexión, sin reiniciar el contenedor `api`.
 
-No verifica la base de datos ni ninguna otra dependencia — siempre responde `ok` mientras el proceso Node esté vivo, incluso si Postgres está caída.
-
-## Contrato nuevo
+## Contrato
 
 **Request**: `GET /health` — sin autenticación (US8: debe poder consultarse para diagnosticar, incluida la situación donde el login mismo esté roto). No debe filtrar ningún dato sensible (FR-028).
 

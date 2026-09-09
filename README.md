@@ -10,6 +10,7 @@ Sistema de captura y registro estructurado de facturas físicas y electrónicas 
 - **Monorepo**: pnpm + Turborepo
 - **Cuentas**: Better Auth (registro con correo/contraseña, verificación de correo vía Resend, sesión por cookie) + Row-Level Security de PostgreSQL como segunda capa de aislamiento entre cuentas, además del `usuarioId` explícito en cada consulta — ver abajo
 - **Extracción**: adaptador `InvoiceExtractor` sobre Claude, OpenAI, Gemini, o cualquier proveedor compatible con la API de OpenAI (Z.ai, Qwen, Kimi, u OpenRouter — agregador con acceso a muchos modelos abiertos con visión, como Qwen3-VL o GLM, bajo una sola cuenta) — ver `specs/001-captura-facturas/research.md` § 10. DeepSeek está preparado en el código pero deshabilitado: su API pública todavía no acepta imágenes.
+- **Despliegue**: Docker Compose + Caddy (TLS automático) — ver § Despliegue abajo. `scripts/backup-db.sh`/`scripts/restore.sh` corren en el VPS mismo (no dentro de un contenedor) y necesitan dos binarios instalados ahí: [`age`](https://age-encryption.org/) (cifrado simétrico) y [`rclone`](https://rclone.org/) (subida al proveedor de almacenamiento externo).
 
 ## Temas visuales
 
@@ -118,7 +119,7 @@ pnpm lint
 
 Procedimiento completo, variable por variable, y qué validar en cada paso: [specs/007-despliegue-produccion/quickstart.md](specs/007-despliegue-produccion/quickstart.md).
 
-**Estado actual**: User Story 1 (levantar el sistema completo) implementada y probada localmente con `docker compose up`/`docker compose run` — build de ambas imágenes, aplicación de migraciones, arranque de NestJS y verificación de fail-fast ante configuración inválida, todo confirmado funcionando. Pendiente de un VPS real para confirmar SC-001 (HTTPS accesible en <15 min) de punta a punta. El resto de las historias de `specs/007-despliegue-produccion/` (sesión sobreviviendo a redespliegues, límites de lote, recuperación de facturas atascadas, respaldo cifrado externo, montos sin tope, índices de escala, endpoint de salud) quedan para las siguientes iteraciones — ver `specs/007-despliegue-produccion/tasks.md`.
+**Estado actual**: las 8 historias de `specs/007-despliegue-produccion/` implementadas y probadas con Docker real — sistema completo con un comando, sesión detrás de Caddy, backlog sin tumbar el sistema, recuperación de facturas atascadas al arranque, respaldo cifrado externo + restauración, montos sin tope artificial, índices para miles de facturas, y `GET /health` reportando el estado real de la base de datos y del último respaldo. Pendiente de un VPS real para confirmar SC-001 (HTTPS accesible en <15 min) de punta a punta y de conectar credenciales reales de respaldo — ver `specs/007-despliegue-produccion/PENDIENTES.md`.
 
 **Costo operativo estimado** (constitution Principio VII, objetivo <15 USD/mes):
 
@@ -128,4 +129,4 @@ Procedimiento completo, variable por variable, y qué validar en cada paso: [spe
 
 Total esperado muy por debajo del límite constitucional.
 
-**Backups**: `scripts/backup-db.sh` — `pg_dump` comprimido del contenedor `postgres` + rotación local (14 días por defecto), pensado para un cron diario en el VPS (ver comentario del script para el crontab exacto). Los backups quedan en `backups/` (ignorado por git — contienen facturas reales) en el mismo VPS; copiarlos también a otro proveedor de almacenamiento queda pendiente, deliberadamente fuera de este script hasta decidir a dónde.
+**Backups**: `scripts/backup-db.sh` — `pg_dump` de la base de datos + las imágenes originales de facturas, empaquetados juntos, cifrados con `age` y subidos con `rclone` a un proveedor de almacenamiento de objetos externo (p. ej. Backblaze B2) en cada corrida; rotación local de 14 días por defecto, pensado para un cron diario en el VPS (ver comentario del script para el crontab exacto). La llave de cifrado (`MYIVO_BACKUP_ENCRYPTION_KEY`) MUST guardarse también fuera del servidor — nunca solo en la máquina que se está respaldando. `scripts/restore.sh` es el procedimiento inverso, documentado y probado de punta a punta contra un entorno limpio (ver [quickstart.md](specs/007-despliegue-produccion/quickstart.md) § 6). El resultado de cada corrida (éxito o fallo) se puede consultar sin leer logs en `GET /health` (`ultimoRespaldo`).

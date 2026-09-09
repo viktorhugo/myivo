@@ -220,6 +220,15 @@ model Factura {
   /// Soft-delete (constitution Principio I / FR-009): ortogonal a `estado`, nunca purgado. No nulo = excluido de toda lectura por defecto.
   eliminadaEn DateTime?
 
+  // US7 (specs/007-despliegue-produccion, FR-025/FR-026): hasta esta migración
+  // `facturas` no tenía ningún índice más allá de la llave primaria — cada
+  // listado/filtro y cada búsqueda de duplicado exacto por CUFE escaneaba la
+  // tabla entera (research.md § 9, verificado leyendo las 10 migraciones
+  // previas). Un tercer índice GIN trgm sobre `comercioNombreNormalizado`
+  // (para la coincidencia difusa de duplicate-matching.service.ts) se agrega
+  // a mano en la migración — Prisma no modela `USING gin (... gin_trgm_ops)`.
+  @@index([usuarioId, eliminadaEn, fechaHoraCompra])
+  @@index([usuarioId, cufe])
   @@map("facturas")
 }
 

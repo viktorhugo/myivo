@@ -124,6 +124,15 @@ export class DuplicateMatchingService {
       return;
     }
 
+    // El operador `%` (no solo `similarity() > umbral`) es lo que deja que el
+    // planner use el índice GIN trgm de `comercioNombreNormalizado` (US7,
+    // specs/007-despliegue-produccion/research.md § 9 — confirmado con
+    // EXPLAIN ANALYZE: `similarity() > umbral` a secas siempre hacía Seq
+    // Scan, agregar `%` cambia a Bitmap Index Scan). Es puramente redundante
+    // con el filtro exacto de abajo — `%` usa el umbral de sesión de
+    // pg_trgm (0.3 por defecto), más laxo que UMBRAL_SIMILITUD_COMERCIO
+    // (0.4), así que nunca descarta una fila que el filtro exacto sí
+    // aceptaría; solo acelera cuáles candidatas llegan a evaluarse.
     const candidatos = await this.prisma.$queryRaw<CandidatoFuzzy[]>`
       SELECT id FROM facturas
       WHERE id != ${facturaId}
@@ -133,6 +142,7 @@ export class DuplicateMatchingService {
         AND "fechaHoraCompra"::date = ${factura.fechaHoraCompra}::date
         AND "totalCentavos" = ${factura.totalCentavos}
         AND "comercioNombreNormalizado" IS NOT NULL
+        AND "comercioNombreNormalizado" % ${factura.comercioNombreNormalizado}
         AND similarity("comercioNombreNormalizado", ${factura.comercioNombreNormalizado}) > ${UMBRAL_SIMILITUD_COMERCIO}
       ORDER BY similarity("comercioNombreNormalizado", ${factura.comercioNombreNormalizado}) DESC
       LIMIT 1

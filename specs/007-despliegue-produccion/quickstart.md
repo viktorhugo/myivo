@@ -6,9 +6,10 @@ Esta es la guía que SC-001 exige que exista ("siguiendo el procedimiento docume
 
 - Un VPS Linux nuevo con Docker + Docker Compose Plugin instalados (el propio proveedor del VPS suele tener una imagen base con esto ya listo).
 - Un dominio propio con su registro DNS (A/AAAA) ya apuntando a la IP del VPS — fuera de alcance de esta feature (spec § Assumptions), se asume ya resuelto.
-- Una cuenta en un proveedor de almacenamiento de objetos compatible con S3 (p. ej. Backblaze B2) con un bucket creado y credenciales generadas — la crea el usuario, esta feature no puede hacerlo por su cuenta (research.md § 12).
+- **`age` y `rclone` instalados en el VPS mismo** (`scripts/backup-db.sh`/`scripts/restore.sh` corren ahí directamente, no dentro de un contenedor — README.md § Stack): en Debian/Ubuntu, `apt install age` (o el binario desde [age-encryption.org](https://age-encryption.org/)) y `curl https://rclone.org/install.sh | sudo bash`.
+- Una cuenta en un proveedor de almacenamiento de objetos compatible con S3 (p. ej. Backblaze B2) con un bucket creado y credenciales generadas — la crea el usuario, esta feature no puede hacerlo por su cuenta (research.md § 12). Con esas credenciales, correr `rclone config` **en el VPS** para armar el remoto — su nombre (p. ej. `b2:mi-bucket/produccion`) es el valor de `MYIVO_BACKUP_REMOTE`.
 - Una cuenta de Resend con `RESEND_API_KEY` (ya requerido desde `specs/006-multi-usuario`, sin cambios).
-- Generado localmente: una llave `age` (`age-keygen`) para `MYIVO_BACKUP_ENCRYPTION_KEY`, y guardada aparte, fuera del VPS, en tu gestor de contraseñas (FR-018a — este paso es manual a propósito, ver contracts/env-vars.md).
+- Generado localmente: una llave `age` (`age-keygen`) para `MYIVO_BACKUP_ENCRYPTION_KEY`, y guardada aparte, fuera del VPS, en tu gestor de contraseñas (FR-018a — este paso es manual a propósito, ver contracts/env-vars.md). Es la MISMA llave que va en el `.env` del VPS — `age-keygen` corre una sola vez (en tu máquina o en el VPS, da igual), no una vez por lugar.
 
 ## 1. Preparar la configuración
 
@@ -66,7 +67,9 @@ docker compose up -d api
 
 ```bash
 # En un VPS/entorno Docker limpio y separado del de producción:
-git clone <repo> && cd myivo && cp .env.example .env   # mismas credenciales de respaldo (misma MYIVO_BACKUP_ENCRYPTION_KEY)
+git clone <repo> && cd myivo
+cp .env.example .env                       # editar: mismas MYIVO_BACKUP_ENCRYPTION_KEY/MYIVO_BACKUP_REMOTE que en producción
+cp apps/api/.env.example apps/api/.env      # con los valores de ejemplo alcanza — restore.sh no los usa, pero docker-compose.yml exige que el archivo exista
 docker compose up -d postgres
 ./scripts/restore.sh myivo-<timestamp>.tar.age
 ```
