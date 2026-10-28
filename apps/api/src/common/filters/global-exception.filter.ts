@@ -68,14 +68,29 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const body = exception.getResponse();
-      const message =
-        typeof body === 'string'
-          ? body
-          : ((body as { message?: string | string[] }).message ?? exception.message);
-      const mensajeFinal = Array.isArray(message) ? message.join(', ') : message;
+      if (typeof body === 'string') {
+        return { statusCode: exception.getStatus(), message: MENSAJE_POR_ERROR_DE_MULTER[body] ?? body };
+      }
+
+      // specs/008-borrado-cuenta: generaliza lo que ya existía solo para
+      // ZodError — cualquier HttpException con body-objeto puede llevar
+      // campos extra (ej. `eliminacionProgramadaPara` en el 409 de
+      // CuentaEliminacionController), no solo `message`. Ningún código
+      // existente lanza una excepción con body-objeto hoy (verificado), así
+      // que generalizar esto no cambia ninguna respuesta ya emitida.
+      const bodyObjeto = body as Record<string, unknown> & { message?: string | string[] };
+      const extra: Record<string, unknown> = {};
+      for (const [clave, valor] of Object.entries(bodyObjeto)) {
+        if (clave !== 'message' && clave !== 'statusCode' && clave !== 'error') {
+          extra[clave] = valor;
+        }
+      }
+      const message = bodyObjeto.message;
+      const mensajeFinal = Array.isArray(message) ? message.join(', ') : (message ?? exception.message);
       return {
         statusCode: exception.getStatus(),
         message: MENSAJE_POR_ERROR_DE_MULTER[mensajeFinal] ?? mensajeFinal,
+        details: Object.keys(extra).length > 0 ? extra : undefined,
       };
     }
 

@@ -34,3 +34,4 @@ apps/api/data/
 
 # Backups de la base de datos (scripts/backup-db.sh) — contienen facturas reales.
 /backups/
+docker-compose.override.yml

@@ -156,6 +156,15 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
           input: false,
           defaultValue: [],
         },
+        // specs/008-borrado-cuenta: nunca se fija por input de usuario — solo
+        // CuentaEliminacionService la escribe. SessionUsuarioGuard la lee
+        // directo de sesion.user (sin query propia) para decidir si bloquea
+        // la cuenta (constitution Principio I v2.1.0).
+        eliminacionProgramadaPara: {
+          type: 'date',
+          required: false,
+          input: false,
+        },
       },
     },
 

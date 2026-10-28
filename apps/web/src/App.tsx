@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Captura from './pages/Captura';
 import ConciliacionDian from './pages/ConciliacionDian';
 import CuentaPropia from './pages/CuentaPropia';
 import Detalle from './pages/Detalle';
+import EliminacionProgramada from './pages/EliminacionProgramada';
 import Listado, { type FiltrosListadoIniciales } from './pages/Listado';
 import ReporteAnual from './pages/ReporteAnual';
 import Login from './pages/Login';
 import SelectorTema from './theme/SelectorTema';
 import { useTheme } from './theme/useTheme';
 import { authClient } from './services/auth-client';
+import { obtenerEstadoEliminacionCuenta } from './services/cuenta';
 
 type Vista =
   | { tipo: 'listado'; filtrosIniciales?: FiltrosListadoIniciales }
@@ -23,12 +25,46 @@ export default function App() {
   const { data: sesion, isPending: sesionPendiente } = authClient.useSession();
   const { preferencia, temaResuelto, setPreferencia } = useTheme();
 
+  // specs/008-borrado-cuenta (US2): `undefined` = todavía sin consultar;
+  // `null` = cuenta activa; una fecha = eliminación programada en curso.
+  // El guard (SessionUsuarioGuard) ya rechaza cualquier otra ruta mientras
+  // esto esté fijado, así que la app NUNCA debe mostrar el shell normal sin
+  // haber confirmado primero que no hay una eliminación en curso.
+  const [eliminacionProgramadaPara, setEliminacionProgramadaPara] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!sesion) {
+      setEliminacionProgramadaPara(undefined);
+      return;
+    }
+    obtenerEstadoEliminacionCuenta()
+      .then(setEliminacionProgramadaPara)
+      .catch(() => setEliminacionProgramadaPara(null));
+    // Depende del id, no del objeto `sesion` completo — evita refetchear en
+    // cada re-render incidental si la referencia que da useSession() cambia
+    // sin que la identidad de la cuenta logueada cambie.
+  }, [sesion?.user.id]);
+
   if (sesionPendiente) {
     return null;
   }
 
   if (!sesion) {
     return <Login tema={temaResuelto} preferencia={preferencia} onCambiarTema={setPreferencia} />;
+  }
+
+  if (eliminacionProgramadaPara === undefined) {
+    return null;
+  }
+
+  if (eliminacionProgramadaPara !== null) {
+    return (
+      <EliminacionProgramada
+        tema={temaResuelto}
+        eliminacionProgramadaPara={eliminacionProgramadaPara}
+        onCancelada={() => setEliminacionProgramadaPara(null)}
+      />
+    );
   }
 
   return (

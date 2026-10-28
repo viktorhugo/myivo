@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import QRCode from 'react-qr-code';
 import { authClient } from '../services/auth-client';
-import { actualizarIdentificaciones, obtenerIdentificaciones } from '../services/cuenta';
+import { actualizarIdentificaciones, obtenerIdentificaciones, solicitarEliminacionCuenta } from '../services/cuenta';
 import CampoContraseña from '../theme/CampoContraseña';
 import { obtenerIcono } from '../theme/iconos';
 import MarcasEsquina from '../theme/MarcasEsquina';
@@ -52,6 +52,13 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
   const [agregandoPasskey, setAgregandoPasskey] = useState(false);
   const [errorPasskey, setErrorPasskey] = useState<string | null>(null);
   const [eliminandoPasskeyId, setEliminandoPasskeyId] = useState<string | null>(null);
+
+  // specs/008-borrado-cuenta (US1): FR-002 exige confirmación deliberada —
+  // repetir el correo de la cuenta, no un solo toque/clic.
+  const [confirmandoEliminacionCuenta, setConfirmandoEliminacionCuenta] = useState(false);
+  const [correoConfirmacionEliminacion, setCorreoConfirmacionEliminacion] = useState('');
+  const [eliminandoCuenta, setEliminandoCuenta] = useState(false);
+  const [errorEliminacionCuenta, setErrorEliminacionCuenta] = useState<string | null>(null);
 
   useEffect(() => {
     obtenerIdentificaciones()
@@ -174,6 +181,20 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
       setErrorPasskey(error.message ?? 'No se pudo eliminar el passkey');
     }
     setEliminandoPasskeyId(null);
+  }
+
+  /** specs/008-borrado-cuenta (US1): tras confirmar, la sesión ya quedó revocada en el servidor — signOut() converge el estado local y manda a Login. */
+  async function manejarEliminarCuenta(event: FormEvent) {
+    event.preventDefault();
+    setEliminandoCuenta(true);
+    setErrorEliminacionCuenta(null);
+    try {
+      await solicitarEliminacionCuenta(correoConfirmacionEliminacion);
+      await authClient.signOut();
+    } catch (err) {
+      setErrorEliminacionCuenta(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta');
+      setEliminandoCuenta(false);
+    }
   }
 
   const IconoVolver = obtenerIcono('volver', tema);
@@ -493,6 +514,84 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
           <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
             {errorPasskey}
           </p>
+        )}
+      </section>
+
+      <section className="card" style={{ padding: '14px 16px', marginTop: 16 }}>
+        <MarcasEsquina />
+        <p className="kicker" style={{ margin: 0, color: 'var(--color-estado-fallida-fg)' }}>
+          Eliminar mi cuenta
+        </p>
+        {!confirmandoEliminacionCuenta ? (
+          <>
+            <p style={{ margin: '6px 0 0', fontSize: 12.5, color: colorDescripcion, textWrap: 'pretty' }}>
+              Tenés 30 días para revertirlo volviendo a entrar. Pasado ese plazo, tus facturas y archivos se
+              destruyen de forma permanente.
+            </p>
+            <button
+              type="button"
+              onClick={() => setConfirmandoEliminacionCuenta(true)}
+              className="menu-contextual-item peligro"
+              style={{ marginTop: 10, padding: '8px 0' }}
+            >
+              <IconoEliminar size={15} strokeWidth={grosorTrazo} />
+              Eliminar mi cuenta
+            </button>
+          </>
+        ) : (
+          <form onSubmit={manejarEliminarCuenta} style={{ marginTop: 8 }}>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: colorDescripcion, textWrap: 'pretty' }}>
+              Escribí <strong>{sesion?.user.email}</strong> para confirmar. Tu cuenta queda inaccesible de
+              inmediato; tenés 30 días para revertirlo volviendo a entrar.
+            </p>
+            <input
+              type="email"
+              value={correoConfirmacionEliminacion}
+              onChange={(e) => setCorreoConfirmacionEliminacion(e.target.value)}
+              placeholder={sesion?.user.email ?? ''}
+              disabled={eliminandoCuenta}
+              className="campo-texto"
+              aria-label="Correo de confirmación"
+            />
+            {errorEliminacionCuenta && (
+              <p role="alert" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--color-estado-fallida-fg)' }}>
+                {errorEliminacionCuenta}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button
+                type="submit"
+                disabled={eliminandoCuenta || correoConfirmacionEliminacion !== sesion?.user.email}
+                style={{
+                  flex: 1,
+                  padding: 8,
+                  fontSize: 12,
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: tema === 'nocturne' ? 500 : 600,
+                  background: tema === 'nocturne' ? 'transparent' : 'var(--color-estado-fallida)',
+                  color: tema === 'nocturne' ? 'var(--color-estado-fallida-fg)' : 'var(--color-bg)',
+                  border: tema === 'nocturne' ? '1px solid var(--color-estado-fallida-fg)' : 'none',
+                  borderRadius: tema === 'nocturne' ? 6 : 0,
+                  cursor: 'pointer',
+                }}
+              >
+                {eliminandoCuenta ? 'Eliminando…' : 'Sí, eliminar mi cuenta'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmandoEliminacionCuenta(false);
+                  setCorreoConfirmacionEliminacion('');
+                  setErrorEliminacionCuenta(null);
+                }}
+                disabled={eliminandoCuenta}
+                className="btn-secondary"
+                style={{ flex: 1, padding: 8, fontSize: 12, borderRadius: tema === 'nocturne' ? 6 : 0 }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
         )}
       </section>
     </section>

@@ -63,6 +63,14 @@ model User {
   /// Campo propio del plugin two-factor (auth.ts) — Better Auth lo agrega y lo lee directamente, no se toca a mano.
   twoFactorEnabled Boolean? @default(false)
 
+  /// specs/008-borrado-cuenta: momento de la última solicitud de borrado de cuenta. No se limpia
+  /// al cancelar (data-model.md) — queda como historial auditable (FR-012) aunque se revierta.
+  eliminacionSolicitadaEn DateTime?
+  /// specs/008-borrado-cuenta: fecha de purga definitiva vigente (solicitadaEn + 30 días). `null`
+  /// = cuenta activa. Mientras no sea `null`, SessionUsuarioGuard trata la cuenta como
+  /// inaccesible (constitution Principio I v2.1.0, única excepción al soft-delete puro).
+  eliminacionProgramadaPara DateTime?
+
   sessions   Session[]
   accounts   Account[]
   passkeys   Passkey[]
