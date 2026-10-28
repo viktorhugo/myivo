@@ -1,17 +1,9 @@
 import { API_BASE_URL, parsearRespuesta } from './invoices';
+import type { DesgloseMes, ReporteAnual } from '@myivo/domain';
 
-export interface DesgloseMesDto {
-  mes: number;
-  totalCentavos: number;
-  conteo: number;
-}
-
-export interface ReporteAnualDto {
-  anio: number;
-  totalCentavos: number;
-  conteo: number;
-  desglosePorMes: DesgloseMesDto[];
-}
+// Sin campos de fecha — forma idéntica a la del dominio.
+export type DesgloseMesDto = DesgloseMes;
+export type ReporteAnualDto = ReporteAnual;
 
 /** Resumen del año elegido (FR-001/FR-002/FR-003/FR-004) — nunca falla por "año sin datos", responde en ceros. */
 export async function consultarReporteAnual(anio: number): Promise<ReporteAnualDto> {

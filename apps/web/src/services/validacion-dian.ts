@@ -1,9 +1,10 @@
 import { API_BASE_URL, parsearRespuesta, type ResultadoValidacionDian } from './invoices';
+import type { MetodoValidacionDian } from '@myivo/domain';
 
 export interface ValidacionDianDto {
   id: string;
   facturaId: string;
-  metodo: 'manual' | 'conciliacion';
+  metodo: MetodoValidacionDian;
   resultado: ResultadoValidacionDian;
   snapshotComercioNombre: string | null;
   snapshotTotalCentavos: number | null;

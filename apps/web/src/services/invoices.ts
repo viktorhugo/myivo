@@ -1,20 +1,18 @@
-export type FacturaEstado =
-  'recibida' | 'procesando' | 'extraída' | 'necesita_revisión' | 'fallida' | 'varias_facturas';
-
-export type MedioPago =
-  'efectivo' | 'tarjeta_debito' | 'tarjeta_credito' | 'transferencia_pse' | 'billetera_digital';
-
-export type CufeOrigen = 'qr' | 'ocr_respaldo';
-
-export type TipoDocumento =
-  | 'factura_electronica'
-  | 'documento_equivalente_pos'
-  | 'documento_soporte'
-  | 'otro'
-  | 'desconocido';
-
-export type ResultadoValidacionDian =
-  'valido_vigente' | 'no_encontrado' | 'anulado_reemplazado' | 'otro';
+// Tipos valor puros (sin Date) — mismo origen de verdad que el backend, cero
+// costo de tipado: a diferencia de Factura/CorreccionManual/ValidacionDian
+// (que sí viajan como string por la red y por eso se redeclaran más abajo
+// con sus propios *Dto), estos no tienen campos de fecha que mapear.
+import type {
+  FacturaEstado,
+  MedioPago,
+  CufeOrigen,
+  TipoDocumento,
+  CampoConConfianza,
+  ResultadoValidacionDian,
+  MetodoDeteccionDuplicado,
+  ItemFactura,
+} from '@myivo/domain';
+export type { FacturaEstado, MedioPago, CufeOrigen, TipoDocumento, CampoConConfianza, ResultadoValidacionDian, MetodoDeteccionDuplicado };
 
 export interface UltimaValidacionDianDto {
   resultado: ResultadoValidacionDian;
@@ -32,7 +30,7 @@ export interface IvaTarifaDto {
   valorCentavos: number;
 }
 
-export type ConfianzaCamposDto = Record<string, number>;
+export type ConfianzaCamposDto = Partial<Record<CampoConConfianza, number>>;
 
 export interface FacturaDto {
   id: string;
@@ -68,15 +66,9 @@ export interface FacturaDto {
   ultimaValidacionDian?: UltimaValidacionDianDto | null;
 }
 
-export interface ItemFacturaDto {
-  id: string;
-  facturaId: string;
-  descripcion: string | null;
-  cantidad: number | null;
-  valorUnitarioCentavos: number | null;
-  valorTotalCentavos: number | null;
-  nivelConfianza: number;
-}
+// Sin campos de fecha — a diferencia de Factura/CorreccionManual, la forma
+// que viaja por la red es idéntica a la entidad de dominio.
+export type ItemFacturaDto = ItemFactura;
 
 export interface CorreccionManualDto {
   id: string;
@@ -217,8 +209,6 @@ export async function reprocesarFactura(id: string): Promise<FacturaDto> {
   });
   return parsearRespuesta<FacturaDto>(response);
 }
-
-export type MetodoDeteccionDuplicado = 'cufe_exacto' | 'comercio_fecha_total_similar';
 
 export interface MarcaPendienteDto {
   id: string;
