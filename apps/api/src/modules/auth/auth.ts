@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { passkey } from '@better-auth/passkey';
 import { twoFactor } from 'better-auth/plugins/two-factor';
@@ -8,6 +9,35 @@ import type { Env } from '../../config/env.schema';
 
 /** Token de inyección — `betterAuth(...)` no es una clase, no se puede inyectar por tipo. */
 export const AUTH = Symbol('AUTH');
+
+/**
+ * Política de notificaciones (Fase 0 ítem 4) — qué ruta de Better Auth
+ * dispara un correo de aviso de seguridad y con qué asunto. Solo rutas que
+ * YA exigen sesión autenticada (sensitiveSessionMiddleware/sessionMiddleware/
+ * freshSessionMiddleware, verificado contra el código instalado de
+ * better-auth@1.6.25 y @better-auth/passkey@1.6.25, no la documentación
+ * genérica) — un intento con contraseña incorrecta nunca llega a disparar
+ * esto porque `ctx.context.returned` sería un APIError (filtrado en el hook
+ * de abajo) antes de que el endpoint real cambie nada.
+ *
+ * Función pura y exportada aparte del hook para poder testear el mapeo
+ * ruta→asunto sin pasar por una request HTTP real.
+ */
+const ASUNTO_POR_RUTA_DE_EVENTO: Readonly<Record<string, string>> = {
+  '/two-factor/enable': 'Verificación en dos pasos activada — MyIvo',
+  '/two-factor/disable': 'Verificación en dos pasos desactivada — MyIvo',
+  '/change-password': 'Tu contraseña fue cambiada — MyIvo',
+  // No existe "/passkey/add-passkey" — el cliente de Better Auth llama
+  // primero a generate-register-options (solo arma el challenge WebAuthn,
+  // no crea nada) y recién verify-registration efectivamente guarda el
+  // passkey nuevo (verificado contra @better-auth/passkey/dist/client.mjs).
+  '/passkey/verify-registration': 'Se agregó un passkey a tu cuenta — MyIvo',
+  '/passkey/delete-passkey': 'Se eliminó un passkey de tu cuenta — MyIvo',
+};
+
+export function asuntoCorreoEventoSeguridad(ruta: string): string | null {
+  return ASUNTO_POR_RUTA_DE_EVENTO[ruta] ?? null;
+}
 
 /** Solo lo que crearAuth necesita — un `Env` completo lo satisface, pero también permite reusarlo fuera de Nest (scripts/migrar-datos-existentes.ts) sin construir un ConfigService. */
 export type EnvParaAuth = Pick<Env, 'RESEND_API_KEY' | 'BETTER_AUTH_SECRET' | 'BETTER_AUTH_URL' | 'EMAIL_FROM' | 'WEB_ORIGIN'>;
@@ -34,6 +64,22 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
     // dev) sin importar que Vite/Nginx reenvíe la petición — sin esto
     // Better Auth la rechaza como posible CSRF ("Invalid origin").
     trustedOrigins: [env.WEB_ORIGIN],
+
+    hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        if (isAPIError(ctx.context.returned)) return;
+        const asunto = asuntoCorreoEventoSeguridad(ctx.path);
+        if (!asunto) return;
+        const correoDestino = ctx.context.session?.user.email;
+        if (!correoDestino) return;
+        await resend.emails.send({
+          from: env.EMAIL_FROM,
+          to: correoDestino,
+          subject: asunto,
+          html: `<p>${asunto.replace(' — MyIvo', '')}.</p><p>Si no fuiste vos, revisá la seguridad de tu cuenta de inmediato (cambiá tu contraseña y cerrá el resto de tus sesiones).</p>`,
+        });
+      }),
+    },
 
     // El rate limiter de Better Auth ya viene activo en producción por
     // defecto (`enabled: options.rateLimit?.enabled ?? isProduction`,

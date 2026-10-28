@@ -1,32 +1,33 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.0.0 → 2.1.0
-Bump rationale: MINOR — expansión material de una guía existente, no redefinición
-incompatible. La garantía general del Principio I permanece intacta ("el archivo
-original NUNCA se modifica, sobrescribe ni elimina por procesos automáticos" sigue
-rigiendo sin excepción en todo lo demás); se agrega un único carve-out acotado y
-disclosed para un caso específico que antes la constitution no contemplaba:
-borrado de cuenta iniciado por su propio titular. No es un MAJOR como el de
-1.0.0→2.0.0 (que redefinió la asunción estructural de un solo usuario) porque no
-reescribe el principio ni cambia su alcance general, solo lo expande con una
-excepción puntual.
+Version change: 2.1.0 → 2.2.0
+Bump rationale: MINOR — expansión material de dos guías existentes, no redefinición
+incompatible. Ninguna garantía previa se retira ni se debilita: el techo de costo
+sube de número pero sigue siendo un techo, y la notificación de seguridad es una
+obligación NUEVA que se agrega, no un reemplazo de ninguna existente.
 
 Principio modificado:
-  - I. Inmutabilidad de la Evidencia — se agrega la única excepción permitida a
-    "nunca se elimina por procesos automáticos": cuando el titular de una cuenta
-    solicita eliminarla por completo (no una factura individual, que sigue siendo
-    soft-delete puro sin excepción), hay una ventana de reversión de 30 días
-    calendario con los originales intactos, y solo al vencer esa ventana sin
-    reversión un proceso automatizado puede y debe destruir los originales y
-    derivados de esa cuenta de forma irreversible. Motivo: App Store Review
-    Guideline 5.1.1(v) exige borrado real desde la app (no basta desactivar), y es
-    además una garantía básica de habeas data — ver specs/008-borrado-cuenta/spec.md.
+  - VII. Privacidad y Soberanía Operativa —
+    (a) el techo de costo operativo objetivo sube de <15 a <25 USD/mes de
+        infraestructura. Motivo: la publicación en App Store exige una cuenta de
+        Apple Developer Program (99 USD/año ≈ 8.25 USD/mes amortizados), que no
+        existía como costo cuando se fijó el techo de 15. El consumo de LLM sigue
+        excluido del techo (escala con el uso, no es costo fijo) — sin cambios ahí.
+    (b) se agrega una obligación nueva: toda acción que cambie cómo alguien accede
+        a su propia cuenta (activar/desactivar 2FA, agregar/eliminar un passkey,
+        cambiar la contraseña) o que la afecte de forma irreversible (todo el
+        ciclo de borrado de cuenta del Principio I v2.1.0: programar, cancelar,
+        purgar) MUST generar un correo de aviso al titular. Motivo: se encontró
+        que el ciclo de borrado de cuenta no notificaba nada — el titular no
+        tenía ninguna constancia escrita de que su cuenta iba a desaparecer, ni
+        de que la canceló, ni de que ya se purgó; para una acción irreversible
+        eso es una garantía básica de habeas data, no un nice-to-have.
 
-Principios sin cambios: II, III, IV, V, VI, VII, VIII — ninguno depende de la
-eliminación de evidencia por borrado de cuenta; se revisaron explícitamente.
+Principios sin cambios: I, II, III, IV, V, VI, VIII — ninguno depende del techo de
+costo ni de la política de notificaciones; se revisaron explícitamente.
 
-Secciones añadidas: ninguna (expansión dentro del Principio I existente).
+Secciones añadidas: ninguna (expansión dentro del Principio VII existente).
 Secciones removidas: ninguna.
 
 Plantillas dependientes:
@@ -35,21 +36,23 @@ Plantillas dependientes:
                                              no requiere edición.
   ✅ .specify/templates/spec-template.md   — sin cambios estructurales requeridos.
   ✅ .specify/templates/tasks-template.md  — sin cambios estructurales requeridos.
-  ✅ .claude/skills/speckit-*/SKILL.md     — revisados: ninguno cita el texto exacto
-                                             del Principio I de forma que la nueva
-                                             excepción lo contradiga.
-  ✅ README.md                              — las dos menciones existentes a
-                                             Principio I (líneas ~50 y ~118) describen
-                                             inmutabilidad a nivel de factura individual
-                                             durante el pipeline de captura/despliegue,
-                                             sin tocar borrado de cuenta — siguen siendo
-                                             exactas sin cambios, la excepción nueva no
-                                             las contradice.
+  ✅ README.md                              — "Costo operativo estimado" (línea ~123)
+                                             cita el techo viejo de <15 USD/mes y
+                                             necesita el mismo ajuste a <25 (editado
+                                             junto con esta enmienda, no queda deuda).
 
-TODOs diferidos: ninguno. La enmienda de costo operativo/notificaciones (motivada
-por la publicación en App Store) y la decisión sobre proveedores sociales quedan
-fuera de esta enmienda — son parte de un plan más amplio, no de este cambio puntual
-de gobernanza (ver Next Actions).
+Implementado junto con esta enmienda (no quedó como TODO diferido): el correo de
+aviso para los 5 eventos de Better Auth (hook global `hooks.after` en auth.ts,
+verificado contra el código instalado de better-auth@1.6.25/@better-auth/passkey@
+1.6.25) y los 3 del ciclo de borrado de cuenta (NotificacionesService nuevo,
+inyectado en CuentaEliminacionService/PurgaCuentasService) — ver auth.spec.ts y
+test/notificaciones-seguridad.e2e-spec.ts.
+
+TODOs diferidos: ninguno de esta enmienda. La decisión sobre proveedores sociales
+(Apple Sign-In vs. dropear los existentes) ya se resolvió aparte, fuera de esta
+enmienda de gobernanza (se dropearon Google/Microsoft/GitHub). El refactor de
+apps/web consumiendo @myivo/domain también se resolvió aparte, sin tocar la
+constitution (no era una cuestión de gobernanza).
 -->
 
 # MyIvo Constitution
@@ -178,9 +181,15 @@ Los datos son de cada usuario, y viven donde quien opera la instancia decide.
 - Los secretos NUNCA se versionan. La configuración va por variables de entorno, con
   validación al arranque que falla rápido si falta o es inválida.
 - El sistema completo MUST levantar con `docker compose up` en un VPS pequeño, sin
-  importar cuántas cuentas use. Costo operativo objetivo: menos de 15 USD/mes de
-  infraestructura, más el consumo de LLM (que escala con el uso total de todas las
-  cuentas, no es un costo fijo por cuenta).
+  importar cuántas cuentas use. Costo operativo objetivo: menos de 25 USD/mes de
+  infraestructura (incluye la cuota de Apple Developer Program amortizada, 99
+  USD/año ≈ 8.25 USD/mes), más el consumo de LLM (que escala con el uso total de
+  todas las cuentas, no es un costo fijo por cuenta).
+- Toda acción que cambie cómo alguien accede a su propia cuenta (activar/desactivar
+  2FA, agregar/eliminar un passkey, cambiar la contraseña) o que la afecte de forma
+  irreversible (todo el ciclo de borrado de cuenta del Principio I: programar,
+  cancelar, purgar) MUST generar un correo de aviso al titular — es la única señal
+  que tiene si alguien distinto a él hizo el cambio.
 
 **Rationale**: El historial de facturas es un perfil de consumo completo de una persona.
 El modelo de privacidad defendible es que los datos nunca salgan de la infraestructura
@@ -249,4 +258,4 @@ verificar el cumplimiento de los ocho principios. La complejidad se justifica o 
 **Guía de runtime**: cuando existan, `README.md` y `docs/quickstart.md` MUST enlazar este
 documento como fuente de autoridad y MUST NOT duplicar sus reglas, para evitar divergencia.
 
-**Version**: 2.1.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-10-27
+**Version**: 2.2.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-10-28

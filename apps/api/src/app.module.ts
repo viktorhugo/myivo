@@ -16,6 +16,7 @@ import { ValidacionDianModule } from './modules/validacion-dian/validacion-dian.
 import { ReportesModule } from './modules/reportes/reportes.module';
 import { ArranqueModule } from './modules/arranque/arranque.module';
 import { PurgaCuentasModule } from './modules/purga-cuentas/purga-cuentas.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { PurgaCuentasModule } from './modules/purga-cuentas/purga-cuentas.module
       ],
     }),
     PrismaModule,
+    NotificacionesModule,
     AuthModule,
     InvoicesModule,
     ExtractionModule,

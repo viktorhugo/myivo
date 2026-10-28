@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectTransaction } from '@nestjs-cls/transactional';
 import type { PrismaClient } from '@prisma/client';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 /** FR-004: ventana de reversión — constitution Principio I v2.1.0, única excepción al soft-delete puro. */
 const VENTANA_DE_GRACIA_EN_DIAS = 30;
@@ -18,7 +19,10 @@ const VENTANA_DE_GRACIA_EN_DIAS = 30;
  */
 @Injectable()
 export class CuentaEliminacionService {
-  constructor(@InjectTransaction() private readonly prisma: PrismaClient) {}
+  constructor(
+    @InjectTransaction() private readonly prisma: PrismaClient,
+    private readonly notificaciones: NotificacionesService,
+  ) {}
 
   /** FR-001 a FR-003, FR-011 (D1-D3 en research.md). */
   async solicitar(usuarioId: string, correoConfirmacion: string): Promise<{ eliminacionProgramadaPara: Date }> {
@@ -50,6 +54,15 @@ export class CuentaEliminacionService {
     // la que hizo esta misma request — queda sin acceso al recibir la respuesta.
     await this.prisma.session.deleteMany({ where: { userId: usuarioId } });
 
+    // Confirmación escrita de una acción irreversible por diseño (constitution
+    // Principio I v2.1.0) — si alguien más programó el borrado, esto es la
+    // única señal que el titular real tiene para enterarse y revertirlo.
+    await this.notificaciones.enviarCorreo(
+      usuario.email,
+      'Tu cuenta de MyIvo será eliminada — MyIvo',
+      `<p>Programaste la eliminación de tu cuenta de MyIvo.</p><p>Se eliminará de forma irreversible el <strong>${eliminacionProgramadaPara.toLocaleDateString('es-CO')}</strong> si no la cancelás antes volviendo a iniciar sesión.</p><p>Si no fuiste vos, iniciá sesión de inmediato para cancelarla.</p>`,
+    );
+
     return { eliminacionProgramadaPara };
   }
 
@@ -72,7 +85,7 @@ export class CuentaEliminacionService {
   async cancelar(usuarioId: string): Promise<{ eliminacionProgramadaPara: null }> {
     const usuario = await this.prisma.user.findUniqueOrThrow({
       where: { id: usuarioId },
-      select: { eliminacionProgramadaPara: true },
+      select: { email: true, eliminacionProgramadaPara: true },
     });
 
     if (!usuario.eliminacionProgramadaPara) {
@@ -80,6 +93,11 @@ export class CuentaEliminacionService {
     }
 
     await this.prisma.user.update({ where: { id: usuarioId }, data: { eliminacionProgramadaPara: null } });
+    await this.notificaciones.enviarCorreo(
+      usuario.email,
+      'Cancelaste la eliminación de tu cuenta — MyIvo',
+      '<p>Tu cuenta de MyIvo ya no tiene ninguna eliminación programada — seguís con acceso normal.</p>',
+    );
     return { eliminacionProgramadaPara: null };
   }
 }

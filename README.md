@@ -120,13 +120,16 @@ Procedimiento completo, variable por variable, y qué validar en cada paso: [spe
 
 **Estado actual**: las 8 historias de `specs/007-despliegue-produccion/` implementadas y probadas con Docker real — sistema completo con un comando, sesión detrás de Caddy, backlog sin tumbar el sistema, recuperación de facturas atascadas al arranque, respaldo cifrado externo + restauración, montos sin tope artificial, índices para miles de facturas, y `GET /health` reportando el estado real de la base de datos y del último respaldo. Pendiente de un VPS real para confirmar SC-001 (HTTPS accesible en <15 min) de punta a punta y de conectar credenciales reales de respaldo — ver `specs/007-despliegue-produccion/PENDIENTES.md`.
 
-**Costo operativo estimado** (constitution Principio VII, objetivo <15 USD/mes):
+**Costo operativo estimado** (constitution Principio VII, objetivo <25 USD/mes):
 
 - VPS pequeño (1 vCPU / 1-2 GB RAM, tipo Hetzner CX22 o DigitalOcean droplet básico): ~4-6 USD/mes
 - Extracción con Claude Sonnet 5 a este volumen (backlog inicial + goteo semanal de facturas): <2 USD/mes (`research.md` § 3)
+- Apple Developer Program (requerido para publicar en App Store), amortizado: ~8.25 USD/mes (99 USD/año)
 - Sin telemetría de terceros ni servicios adicionales de pago
 
 Total esperado muy por debajo del límite constitucional.
+
+**Notificaciones de seguridad** (constitution Principio VII v2.2.0): activar/desactivar 2FA, agregar/eliminar un passkey, cambiar la contraseña, y todo el ciclo de borrado de cuenta (programar, cancelar, purgar) envían un correo de aviso al titular — vía Resend, mismo proveedor que la verificación de correo. Es la única señal que el titular tiene si alguien distinto a él hizo el cambio.
 
 **Backups**: `scripts/backup-db.sh` — `pg_dump` de la base de datos + las imágenes originales de facturas, empaquetados juntos, cifrados con `age` y subidos con `rclone` a un proveedor de almacenamiento de objetos externo (p. ej. Backblaze B2) en cada corrida; rotación local de 14 días por defecto, pensado para un cron diario en el VPS (ver comentario del script para el crontab exacto). La llave de cifrado (`MYIVO_BACKUP_ENCRYPTION_KEY`) MUST guardarse también fuera del servidor — nunca solo en la máquina que se está respaldando. `scripts/restore.sh` es el procedimiento inverso, documentado y probado de punta a punta contra un entorno limpio (ver [quickstart.md](specs/007-despliegue-produccion/quickstart.md) § 6). El resultado de cada corrida (éxito o fallo) se puede consultar sin leer logs en `GET /health` (`ultimoRespaldo`).
 
