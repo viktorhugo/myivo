@@ -421,7 +421,7 @@ export default function CuentaPropia({ tema, onVolver }: { tema: TemaResuelto; o
             <form onSubmit={manejarActivar2FA} style={{ marginTop: 10 }}>
               <CampoContraseña
                 tema={tema}
-                etiqueta="Tu contraseña (déjalo vacío si tu cuenta es solo de Google/Microsoft/GitHub)"
+                etiqueta="Tu contraseña"
                 valor={contraseñaActivar2FA}
                 onCambiar={setContraseñaActivar2FA}
                 autoComplete="current-password"
