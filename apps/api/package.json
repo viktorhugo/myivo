@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "migrar:datos-existentes": "tsx scripts/migrar-datos-existentes.ts"
+    "migrar:datos-existentes": "tsx scripts/migrar-datos-existentes.ts",
+    "purgar:cuentas-eliminadas": "tsx scripts/purgar-cuentas-eliminadas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

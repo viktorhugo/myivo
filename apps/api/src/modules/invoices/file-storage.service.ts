@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import type { Env } from '../../config/env.schema';
 
@@ -59,5 +59,22 @@ export class FileStorageService {
 
   leer(ruta: string): Promise<Buffer> {
     return readFile(ruta);
+  }
+
+  /**
+   * specs/008-borrado-cuenta (FR-007, FR-010): única vía por la que un
+   * original o derivado se destruye de forma automatizada — exclusiva del
+   * comando de purga tras la ventana de 30 días (constitution Principio I
+   * v2.1.0). Idempotente a propósito: un archivo ya inexistente (reintento
+   * tras una purga interrumpida a la mitad) cuenta como éxito, no como error.
+   */
+  async borrarArchivo(ruta: string): Promise<void> {
+    try {
+      await unlink(ruta);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
   }
 }
