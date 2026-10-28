@@ -1,48 +1,55 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 2.0.0
-Bump rationale: MAJOR — redefinición incompatible del Principio VII. Hasta ahora el
-principio asumía explícitamente un solo usuario por instancia ("el único modelo de
-privacidad defendible aquí es que nunca salga de casa", sin concepto de cuenta). La
-enmienda permite varias cuentas reales en la misma instancia autoalojada, con una
-garantía nueva y no negociable: aislamiento total de datos entre cuentas. Cualquier
-feature o código que asuma "un solo usuario en todo el sistema" (p. ej. configuración
-global de identificaciones tributarias sin dueño) queda desactualizado por este cambio
-— de ahí el MAJOR, no un MINOR.
+Version change: 2.0.0 → 2.1.0
+Bump rationale: MINOR — expansión material de una guía existente, no redefinición
+incompatible. La garantía general del Principio I permanece intacta ("el archivo
+original NUNCA se modifica, sobrescribe ni elimina por procesos automáticos" sigue
+rigiendo sin excepción en todo lo demás); se agrega un único carve-out acotado y
+disclosed para un caso específico que antes la constitution no contemplaba:
+borrado de cuenta iniciado por su propio titular. No es un MAJOR como el de
+1.0.0→2.0.0 (que redefinió la asunción estructural de un solo usuario) porque no
+reescribe el principio ni cambia su alcance general, solo lo expande con una
+excepción puntual.
 
 Principio modificado:
-  - VII. Privacidad y Soberanía Operativa — de "los datos son del usuario" (singular,
-    instancia = una persona) a "los datos son de cada usuario" (una instancia
-    autoalojada puede servir a varias cuentas, cada una completamente aislada de las
-    demás). El resto del principio (autoalojado, cero telemetría a terceros, costo
-    operativo bajo) se mantiene intacto en su espíritu.
+  - I. Inmutabilidad de la Evidencia — se agrega la única excepción permitida a
+    "nunca se elimina por procesos automáticos": cuando el titular de una cuenta
+    solicita eliminarla por completo (no una factura individual, que sigue siendo
+    soft-delete puro sin excepción), hay una ventana de reversión de 30 días
+    calendario con los originales intactos, y solo al vencer esa ventana sin
+    reversión un proceso automatizado puede y debe destruir los originales y
+    derivados de esa cuenta de forma irreversible. Motivo: App Store Review
+    Guideline 5.1.1(v) exige borrado real desde la app (no basta desactivar), y es
+    además una garantía básica de habeas data — ver specs/008-borrado-cuenta/spec.md.
 
-Principios sin cambios: I, II, III, IV, V, VI, VIII — ninguno depende del número de
-usuarios; se revisaron explícitamente y su lenguaje ya es neutral por cuenta ("el
-usuario o su contador", "el usuario confirma el resultado") sin necesitar ajuste.
+Principios sin cambios: II, III, IV, V, VI, VII, VIII — ninguno depende de la
+eliminación de evidencia por borrado de cuenta; se revisaron explícitamente.
 
-Secciones añadidas: ninguna. Secciones removidas: ninguna.
+Secciones añadidas: ninguna (expansión dentro del Principio I existente).
+Secciones removidas: ninguna.
 
 Plantillas dependientes:
-  ✅ .specify/templates/plan-template.md   — "Constitution Check" es genérico
-                                             ("[Gates determined based on constitution file]");
-                                             no requiere edición, los gates se derivan en tiempo de /speckit-plan.
-  ✅ .specify/templates/spec-template.md   — estructura compatible, sin cambios.
+  ✅ .specify/templates/plan-template.md   — "Constitution Check" es genérico, los
+                                             gates se derivan en tiempo de /speckit-plan;
+                                             no requiere edición.
+  ✅ .specify/templates/spec-template.md   — sin cambios estructurales requeridos.
   ✅ .specify/templates/tasks-template.md  — sin cambios estructurales requeridos.
-  ✅ .claude/skills/speckit-*/SKILL.md     — revisados: sin referencias a "un solo usuario"
-                                             que dependan del principio modificado.
-  ⚠ README.md                              — describe correctamente el sistema TAL COMO ESTÁ HOY
-                                             (auth de un solo usuario, `AUTH_USERNAME`/
-                                             `AUTH_PASSWORD_HASH` únicos, costo estimado para una
-                                             persona) — deliberadamente NO se edita en esta enmienda:
-                                             el código todavía no soporta varias cuentas, y describir
-                                             multi-usuario antes de que exista sería documentar algo
-                                             falso. Se actualiza en el Polish de la feature que
-                                             implemente cuentas reales (ver Next Actions).
+  ✅ .claude/skills/speckit-*/SKILL.md     — revisados: ninguno cita el texto exacto
+                                             del Principio I de forma que la nueva
+                                             excepción lo contradiga.
+  ✅ README.md                              — las dos menciones existentes a
+                                             Principio I (líneas ~50 y ~118) describen
+                                             inmutabilidad a nivel de factura individual
+                                             durante el pipeline de captura/despliegue,
+                                             sin tocar borrado de cuenta — siguen siendo
+                                             exactas sin cambios, la excepción nueva no
+                                             las contradice.
 
-TODOs diferidos: ninguno (el diseño técnico de multi-usuario es intencionalmente una
-feature futura vía /speckit-specify, no parte de esta enmienda de gobernanza).
+TODOs diferidos: ninguno. La enmienda de costo operativo/notificaciones (motivada
+por la publicación en App Store) y la decisión sobre proveedores sociales quedan
+fuera de esta enmienda — son parte de un plan más amplio, no de este cambio puntual
+de gobernanza (ver Next Actions).
 -->
 
 # MyIvo Constitution
@@ -63,9 +70,23 @@ La imagen original de cada factura es evidencia probatoria y es inmutable.
   registro se marca, los archivos permanecen recuperables.
 - El sistema MUST poder devolver, para cualquier registro, el byte-stream original tal
   como fue ingresado.
+- **Excepción única y acotada — borrado de cuenta**: cuando el titular de una cuenta
+  solicita explícitamente eliminarla por completo (no una factura individual, que sigue
+  rigiéndose por la regla de soft-delete de arriba sin excepción), el sistema MUST ofrecer
+  una ventana de reversión de 30 días calendario desde la solicitud, durante la cual los
+  archivos originales permanecen intactos y recuperables. Vencida esa ventana sin que el
+  titular haya revertido el borrado, un proceso automatizado MUST destruir físicamente los
+  archivos originales y derivados de esa cuenta, de forma irreversible. Fuera de esta única
+  circunstancia, la regla general ("nunca por procesos automáticos") sigue rigiendo sin
+  excepción.
 
 **Rationale**: Ante una revisión de la DIAN el original es la única prueba admisible.
-Cualquier pérdida o alteración silenciosa destruye el valor completo del sistema.
+Cualquier pérdida o alteración silenciosa destruye el valor completo del sistema. La única
+excepción deliberada es la voluntad expresa de su propio titular de eliminar su cuenta por
+completo: ahí el derecho del usuario sobre sus propios datos (habeas data, y el requisito de
+borrado real de App Store Review Guideline 5.1.1(v)) pesa más que la garantía probatoria. La
+ventana de 30 días existe precisamente para que un error humano —pedir el borrado por
+accidente— no se vuelva irreversible por accidente también.
 
 ### II. Exactitud Monetaria
 
@@ -228,4 +249,4 @@ verificar el cumplimiento de los ocho principios. La complejidad se justifica o 
 **Guía de runtime**: cuando existan, `README.md` y `docs/quickstart.md` MUST enlazar este
 documento como fuente de autoridad y MUST NOT duplicar sus reglas, para evitar divergencia.
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-07-29
+**Version**: 2.1.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-10-27
