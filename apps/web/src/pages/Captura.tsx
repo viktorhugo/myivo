@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import {
   obtenerFactura,
   reprocesarFactura,
@@ -6,6 +6,7 @@ import {
   urlImagenFactura,
   type FacturaDto,
 } from '../services/invoices';
+import { esPlataformaNativa, tomarFotoNativa } from '../utils/camara-nativa';
 import { formatearCentavos } from '../format';
 import { obtenerIcono, type NombreIcono } from '../theme/iconos';
 import MarcasEsquina from '../theme/MarcasEsquina';
@@ -98,7 +99,7 @@ export default function Captura({
     return () => clearInterval(intervalo);
   }, []);
 
-  async function subirArchivos(archivos: FileList | null) {
+  async function subirArchivos(archivos: FileList | File[] | null) {
     if (!archivos || archivos.length === 0) return;
     setSubiendo(true);
     setError(null);
@@ -115,6 +116,21 @@ export default function Captura({
   async function manejarSeleccion(event: ChangeEvent<HTMLInputElement>) {
     await subirArchivos(event.target.files);
     event.target.value = '';
+  }
+
+  /** US2 (specs/009): en nativo, la cámara del sistema cruza el puente de Capacitor en vez
+   * de depender del `<input capture>` — ver camara-nativa.ts. */
+  async function manejarFotoNativa() {
+    setSubiendo(true);
+    setError(null);
+    try {
+      const archivo = await tomarFotoNativa();
+      if (archivo) await subirArchivos([archivo]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al tomar la foto');
+    } finally {
+      setSubiendo(false);
+    }
   }
 
   /** Reintento inline (FR-013) — feedback inmediato en vez de esperar al próximo tick del polling. */
@@ -154,6 +170,14 @@ export default function Captura({
             opacity: subiendo ? 0.6 : 1,
             background: tema === 'nocturne' ? 'rgba(145, 132, 217, 0.06)' : undefined,
           }}
+          onClick={
+            esPlataformaNativa()
+              ? (event: MouseEvent<HTMLLabelElement>) => {
+                  event.preventDefault();
+                  void manejarFotoNativa();
+                }
+              : undefined
+          }
         >
           <MarcasEsquina />
           <input
@@ -221,7 +245,9 @@ export default function Captura({
             factura={factura}
             tema={tema}
             onAbrir={() => onSeleccionar(factura.id)}
-            onRecapturar={() => inputCamaraRef.current?.click()}
+            onRecapturar={() =>
+              esPlataformaNativa() ? manejarFotoNativa() : inputCamaraRef.current?.click()
+            }
             onReintentar={() => manejarReintentar(factura.id)}
           />
         ))}

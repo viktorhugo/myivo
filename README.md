@@ -1,4 +1,4 @@
-# MyIvo
+# Cufeo
 
 Sistema de captura y registro estructurado de facturas físicas y electrónicas (declaración de renta, Colombia), autoalojado y de registro abierto — cualquier persona crea su propia cuenta y sus datos quedan completamente aislados de los de cualquier otra. Fotografías o subes una factura (o el PDF de una factura electrónica), el sistema la guarda de inmediato, extrae los datos con un LLM de visión, la clasifica tributariamente y detecta duplicados. Ver `specs/001-captura-facturas/spec.md` para el detalle funcional completo, `specs/002-rediseno-visual-web/spec.md` para el rediseño visual y las capacidades que agrega (eliminar factura, detección de varias facturas en una foto, estado vacío), `specs/003-validacion-dian/spec.md` para la validación asistida de CUFEs contra la DIAN, `specs/004-reporte-anual-renta/spec.md` para el reporte anual de compras elegibles y su exportación, `specs/005-captura-pdf-facturas/spec.md` para la captura de facturas electrónicas en PDF, y `specs/006-multi-usuario/spec.md` para el registro abierto y el aislamiento entre cuentas.
 
@@ -128,6 +128,14 @@ Procedimiento completo, variable por variable, y qué validar en cada paso: [spe
 - Sin telemetría de terceros ni servicios adicionales de pago
 
 Total esperado muy por debajo del límite constitucional.
+
+## App iOS (App Store)
+
+`apps/web` se empaqueta con Capacitor (`apps/web/capacitor.config.ts` + `apps/web/ios/`) para publicarse como app nativa en el Apple App Store, sin reescribir la interfaz. La captura de facturas usa la cámara nativa del dispositivo (no notificaciones push) como la capacidad real que exige la Guideline 4.2 de Apple — decisión y alternativas descartadas en `specs/009-publicacion-app-store/research.md`.
+
+Procedimiento completo de empaquetado, verificación y TestFlight: [specs/009-publicacion-app-store/quickstart.md](specs/009-publicacion-app-store/quickstart.md).
+
+**Estado actual**: Historias 1-2 (US1, US2) confirmadas en un iPhone real — la app abre con ícono/splash propios, sin barra de navegador, sin el crash de `capacitor://localhost` que tiraba Better Auth al no tener un `baseURL` http(s) explícito (3 fixes necesarios: `baseURL` condicional en `auth-client.ts`, CORS y `trustedOrigins` nuevos en `apps/api` — nunca hicieron falta antes porque la web siempre fue same-origin). El flujo web se reverificó con Playwright real tras esos cambios, sin regresiones. Pendiente de HTTPS real (`specs/007-despliegue-produccion`, VPS todavía sin desplegar) para que la sesión persista probando por LAN — las cookies cross-origin exigen `SameSite=None; Secure`, y `Secure` exige HTTPS.
 
 **Notificaciones de seguridad** (constitution Principio VII v2.2.0): activar/desactivar 2FA, agregar/eliminar un passkey, cambiar la contraseña, y todo el ciclo de borrado de cuenta (programar, cancelar, purgar) envían un correo de aviso al titular — vía Resend, mismo proveedor que la verificación de correo. Es la única señal que el titular tiene si alguien distinto a él hizo el cambio.
 

@@ -27,6 +27,14 @@ async function bootstrap(): Promise<void> {
   // cadena — no hay más proxies detrás en este despliegue de un solo VPS.
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
+  // Nunca hizo falta hasta specs/009: la web siempre fue same-origin (Vite/
+  // Caddy proxean /api/* sin exponer un origin distinto al navegador). La
+  // app empaquetada con Capacitor es el primer cliente real cross-origin —
+  // su WebView manda Origin: capacitor://localhost. Sin wildcard porque las
+  // requests van con cookies de sesión (credentials: true exige un origin
+  // explícito, nunca '*').
+  app.enableCors({ origin: ['capacitor://localhost'], credentials: true });
+
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   const auth = app.get<Auth>(AUTH);

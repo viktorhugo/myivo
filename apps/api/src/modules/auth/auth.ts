@@ -24,15 +24,15 @@ export const AUTH = Symbol('AUTH');
  * ruta→asunto sin pasar por una request HTTP real.
  */
 const ASUNTO_POR_RUTA_DE_EVENTO: Readonly<Record<string, string>> = {
-  '/two-factor/enable': 'Verificación en dos pasos activada — MyIvo',
-  '/two-factor/disable': 'Verificación en dos pasos desactivada — MyIvo',
-  '/change-password': 'Tu contraseña fue cambiada — MyIvo',
+  '/two-factor/enable': 'Verificación en dos pasos activada — Cufeo',
+  '/two-factor/disable': 'Verificación en dos pasos desactivada — Cufeo',
+  '/change-password': 'Tu contraseña fue cambiada — Cufeo',
   // No existe "/passkey/add-passkey" — el cliente de Better Auth llama
   // primero a generate-register-options (solo arma el challenge WebAuthn,
   // no crea nada) y recién verify-registration efectivamente guarda el
   // passkey nuevo (verificado contra @better-auth/passkey/dist/client.mjs).
-  '/passkey/verify-registration': 'Se agregó un passkey a tu cuenta — MyIvo',
-  '/passkey/delete-passkey': 'Se eliminó un passkey de tu cuenta — MyIvo',
+  '/passkey/verify-registration': 'Se agregó un passkey a tu cuenta — Cufeo',
+  '/passkey/delete-passkey': 'Se eliminó un passkey de tu cuenta — Cufeo',
 };
 
 export function asuntoCorreoEventoSeguridad(ruta: string): string | null {
@@ -63,7 +63,12 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
     // El navegador manda el Origin real de la página (localhost:5173 en
     // dev) sin importar que Vite/Nginx reenvíe la petición — sin esto
     // Better Auth la rechaza como posible CSRF ("Invalid origin").
-    trustedOrigins: [env.WEB_ORIGIN],
+    // 'capacitor://localhost' (specs/009): el WebView de la app empaquetada
+    // para iOS manda ESE origin fijo (no el dominio real), a diferencia del
+    // navegador — verificado contra el matching real de better-auth@1.6.25
+    // (auth/trusted-origins.mjs): para un origin sin protocolo http(s),
+    // compara con `startsWith`, así que el string literal alcanza.
+    trustedOrigins: [env.WEB_ORIGIN, 'capacitor://localhost'],
 
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
@@ -76,7 +81,7 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
           from: env.EMAIL_FROM,
           to: correoDestino,
           subject: asunto,
-          html: `<p>${asunto.replace(' — MyIvo', '')}.</p><p>Si no fuiste vos, revisá la seguridad de tu cuenta de inmediato (cambiá tu contraseña y cerrá el resto de tus sesiones).</p>`,
+          html: `<p>${asunto.replace(' — Cufeo', '')}.</p><p>Si no fuiste vos, revisá la seguridad de tu cuenta de inmediato (cambiá tu contraseña y cerrá el resto de tus sesiones).</p>`,
         });
       }),
     },
@@ -119,8 +124,8 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
         await resend.emails.send({
           from: env.EMAIL_FROM,
           to: user.email,
-          subject: 'Verifica tu correo — MyIvo',
-          html: `<p>Confirma tu cuenta de MyIvo para empezar a capturar tus facturas.</p><p><a href="${url}">Verificar correo</a></p><p>Si no creaste esta cuenta, ignora este correo.</p>`,
+          subject: 'Verifica tu correo — Cufeo',
+          html: `<p>Confirma tu cuenta de Cufeo para empezar a capturar tus facturas.</p><p><a href="${url}">Verificar correo</a></p><p>Si no creaste esta cuenta, ignora este correo.</p>`,
         });
       },
     },
@@ -149,13 +154,13 @@ export function crearAuth(prisma: PrismaClient, env: EnvParaAuth) {
     plugins: [
       passkey({
         rpID: new URL(env.WEB_ORIGIN).hostname,
-        rpName: 'MyIvo',
+        rpName: 'Cufeo',
         origin: env.WEB_ORIGIN,
         // default (requireSession: true): un passkey se agrega desde "Mi
         // cuenta" con sesión activa, nunca como método de registro nuevo.
       }),
       twoFactor({
-        issuer: 'MyIvo',
+        issuer: 'Cufeo',
       }),
     ],
   });

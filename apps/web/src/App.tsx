@@ -11,6 +11,7 @@ import SelectorTema from './theme/SelectorTema';
 import { useTheme } from './theme/useTheme';
 import { authClient } from './services/auth-client';
 import { obtenerEstadoEliminacionCuenta } from './services/cuenta';
+import { useEnLinea } from './utils/conexion';
 
 type Vista =
   | { tipo: 'listado'; filtrosIniciales?: FiltrosListadoIniciales }
@@ -22,6 +23,7 @@ type Vista =
 
 export default function App() {
   const [vista, setVista] = useState<Vista>({ tipo: 'listado' });
+  const enLinea = useEnLinea();
   const { data: sesion, isPending: sesionPendiente } = authClient.useSession();
   const { preferencia, temaResuelto, setPreferencia } = useTheme();
 
@@ -46,6 +48,17 @@ export default function App() {
   }, [sesion?.user.id]);
 
   if (sesionPendiente) {
+    // FR-007 (specs/009): sin conexión, la sesión queda "pendiente" para siempre —
+    // sin esto, la primera apertura offline se queda en una pantalla en blanco.
+    if (!enLinea) {
+      return (
+        <main style={{ maxWidth: 430, margin: '0 auto', padding: '40vh 20px 0', textAlign: 'center' }}>
+          <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text)' }}>
+            Sin conexión a internet. Cufeo necesita conexión para iniciar — probá de nuevo cuando vuelvas a tener señal.
+          </p>
+        </main>
+      );
+    }
     return null;
   }
 

@@ -4,12 +4,90 @@ Esta es la guía que SC-001 exige que exista ("siguiendo el procedimiento docume
 
 ## Prerrequisitos
 
-- Un VPS Linux nuevo con Docker + Docker Compose Plugin instalados (el propio proveedor del VPS suele tener una imagen base con esto ya listo).
-- Un dominio propio con su registro DNS (A/AAAA) ya apuntando a la IP del VPS — fuera de alcance de esta feature (spec § Assumptions), se asume ya resuelto.
+- Un VPS Linux nuevo con Docker + Docker Compose Plugin instalados — **ver § 0 abajo si todavía no tenés ninguno** (decisión tomada: DigitalOcean, 1 vCPU/2GB, ~$12/mes).
+- Un dominio propio con su registro DNS (A/AAAA) ya apuntando a la IP del VPS — **ver § 0.2** si todavía no tenés dominio.
 - **`age` y `rclone` instalados en el VPS mismo** (`scripts/backup-db.sh`/`scripts/restore.sh` corren ahí directamente, no dentro de un contenedor — README.md § Stack): en Debian/Ubuntu, `apt install age` (o el binario desde [age-encryption.org](https://age-encryption.org/)) y `curl https://rclone.org/install.sh | sudo bash`.
-- Una cuenta en un proveedor de almacenamiento de objetos compatible con S3 (p. ej. Backblaze B2) con un bucket creado y credenciales generadas — la crea el usuario, esta feature no puede hacerlo por su cuenta (research.md § 12). Con esas credenciales, correr `rclone config` **en el VPS** para armar el remoto — su nombre (p. ej. `b2:mi-bucket/produccion`) es el valor de `MYIVO_BACKUP_REMOTE`.
+- Una cuenta en un proveedor de almacenamiento de objetos compatible con S3 (decisión tomada: Backblaze B2, 10GB gratis) con un bucket creado y credenciales generadas — **ver § 0.3**. Con esas credenciales, correr `rclone config` **en el VPS** para armar el remoto — su nombre (p. ej. `b2prod:mi-bucket/produccion`) es el valor de `MYIVO_BACKUP_REMOTE` — **ver § 0.4**.
 - Una cuenta de Resend con `RESEND_API_KEY` (ya requerido desde `specs/006-multi-usuario`, sin cambios).
-- Generado localmente: una llave `age` (`age-keygen`) para `MYIVO_BACKUP_ENCRYPTION_KEY`, y guardada aparte, fuera del VPS, en tu gestor de contraseñas (FR-018a — este paso es manual a propósito, ver contracts/env-vars.md). Es la MISMA llave que va en el `.env` del VPS — `age-keygen` corre una sola vez (en tu máquina o en el VPS, da igual), no una vez por lugar.
+- Generado localmente: una llave `age` (`age-keygen`) para `MYIVO_BACKUP_ENCRYPTION_KEY`, y guardada aparte, fuera del VPS, en tu gestor de contraseñas (FR-018a — este paso es manual a propósito, ver contracts/env-vars.md). Es la MISMA llave que va en el `.env` del VPS — `age-keygen` corre una sola vez (en tu máquina o en el VPS, da igual), no una vez por lugar. Paso a paso ya cubierto en `specs/007-despliegue-produccion/PENDIENTES.md`.
+
+## 0. Conseguir la infraestructura, desde cero
+
+Esta sección es solo para la primera vez — si ya tenés el VPS, el dominio, y la cuenta de storage, saltá directo a "## 1. Preparar la configuración".
+
+### 0.1 Crear el VPS en DigitalOcean
+
+1. Entrá a [digitalocean.com](https://www.digitalocean.com) y creá una cuenta (correo + contraseña, o con tu cuenta de Google/GitHub). Te van a pedir una tarjeta o PayPal para activar la facturación — el plan que vamos a usar no es gratis.
+2. Arriba a la derecha, **Create → Droplets**.
+3. **Choose an image**: no elijas "Ubuntu" a secas — buscá en la pestaña **Marketplace** la imagen **"Docker on Ubuntu"**. Viene con Docker y el plugin de Compose ya instalados, te ahorra todo ese paso.
+4. **Choose Size**: pestaña **Basic** → **Regular SSD** → el plan de **1 vCPU / 2GB RAM / 50GB SSD** (~$12/mes).
+5. **Choose a datacenter region**: cualquiera de EE. UU. (Nueva York, Atlanta, etc.) — te va a dar mejor latencia desde Colombia que Europa o Asia.
+6. **Authentication**: elegí **SSH Key** (más seguro que contraseña) en vez de Password. Si nunca generaste una, hacelo en tu propia máquina antes de seguir:
+
+   ```bash
+   ssh-keygen -t ed25519 -C "tu-correo@ejemplo.com"
+   cat ~/.ssh/id_ed25519.pub
+   ```
+
+   Pegá el contenido completo de ese `cat` en el campo que te pide DigitalOcean ("New SSH Key").
+7. Ponele un nombre al Droplet (p. ej. `myivo-produccion`) y creá.
+8. En un minuto o dos te va a mostrar una **dirección IP pública** (p. ej. `164.90.XX.XX`) — anotala, la vas a necesitar para el DNS.
+9. Conectate para confirmar que funciona:
+
+   ```bash
+   ssh root@<la-ip-que-te-dio>
+   docker --version   # debería responder sin error — viene preinstalado
+   ```
+
+### 0.2 Dominio y DNS
+
+Necesitás un dominio propio — Caddy (lo que da el HTTPS automático) no puede sacar un certificado para una IP pelada, solo para un dominio real.
+
+1. Si no tenés uno, comprá cualquiera barato (`.com`, `.app`, etc. — unos 10-15 USD/año) en el registrador que prefieras (Namecheap, Cloudflare Registrar, el que sea).
+2. En el panel de DNS de ese dominio, agregá un registro **A**: Host `@` (o un subdominio, p. ej. `facturas`), Valor = la IP del Droplet del paso anterior, TTL por defecto.
+3. Esperá a que propague (puede ser desde minutos hasta un par de horas). Confirmá con:
+
+   ```bash
+   dig +short tu-dominio.com
+   ```
+
+   Debería devolver la misma IP del Droplet.
+
+### 0.3 Backblaze B2 — cuenta, bucket y credenciales
+
+1. Creá una cuenta gratis en [backblaze.com/cloud-storage](https://www.backblaze.com/cloud-storage) (no pide tarjeta para el tier gratis).
+2. En el panel, **Buckets → Create a Bucket**. Nombre único (p. ej. `myivo-backups-tu-nombre`), tipo **Private** (nunca público — son tus facturas cifradas).
+3. **Application Keys → Add a New Application Key**. Importante: NO uses la "master key" — generá una nueva, restringida a este bucket puntual. Ponele un nombre y confirmá.
+4. Te va a mostrar **keyID** y **applicationKey** — la `applicationKey` solo se muestra UNA vez, copiala ya a tu gestor de contraseñas. Estas dos van directo al paso siguiente (y después al `.env` del VPS) — nunca me las pegues a mí en el chat.
+5. Anotá también el **Endpoint** que te muestra el bucket (algo como `s3.us-west-002.backblazeb2.com`) — lo vas a necesitar si en algún momento configurás algo manualmente, aunque `rclone config` ya lo resuelve solo con el ID de cuenta.
+
+### 0.4 Conectar `rclone` con Backblaze (en el VPS)
+
+Por SSH, en el VPS (después de instalar `rclone` — ver Prerrequisitos arriba):
+
+```bash
+rclone config
+```
+
+Seguí el asistente interactivo:
+
+- `n` → nuevo remoto.
+- Nombre: `b2prod` (o el que quieras — eso es lo que después va en `MYIVO_BACKUP_REMOTE`).
+- Tipo: buscá/escribí `b2` (Backblaze B2 — no "s3", `rclone` tiene soporte nativo para B2).
+- `account`: pegá el **keyID** del paso 0.3.
+- `key`: pegá la **applicationKey** del paso 0.3.
+- El resto, dejar los valores por defecto (Enter).
+- `y` para confirmar, `q` para salir.
+
+Confirmá que funciona:
+
+```bash
+rclone lsd b2prod:
+```
+
+Debería listar tu bucket sin error. El valor de `MYIVO_BACKUP_REMOTE` en tu `.env` va a ser `b2prod:myivo-backups-tu-nombre/produccion` (el nombre de tu bucket real + una carpeta, p. ej. `produccion`).
+
+Con esto ya tenés los 3 prerrequisitos resueltos — seguí con la llave `age` (PENDIENTES.md) y después con "## 1. Preparar la configuración" de acá abajo.
 
 ## 1. Preparar la configuración
 

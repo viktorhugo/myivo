@@ -14,7 +14,12 @@ Lista de lo que quedó bloqueado en algo que solo vos podés hacer (cuenta real,
 El pipeline completo (empaquetar, cifrar con `age`, subir con `rclone`, escribir el estado, restaurar en un servidor limpio, rechazar sobrescribir sin `--forzar`) ya se probó de punta a punta con Docker real — instalé `age`/`rclone` localmente y usé un directorio local como "remoto" para no depender de una cuenta en la nube. Lo que falta es solo conectar tus credenciales reales:
 
 - [ ] **Crear una cuenta en un proveedor de almacenamiento de objetos** (p. ej. Backblaze B2) y correr `rclone config` para armar el remoto — lo necesito para `MYIVO_BACKUP_REMOTE`. No puedo crear cuentas de terceros por mi cuenta.
-- [ ] **Generar tu llave `age` real** (`age-keygen -o llave.txt`, un comando) y guardarla en tu gestor de contraseñas, fuera del servidor — es `MYIVO_BACKUP_ENCRYPTION_KEY` (FR-018a: nunca solo en el servidor que se respalda). La que usé para probar era una llave descartable de prueba, no sirve para producción.
+- [ ] **Generar tu llave `age` real para producción** — el 2026-10-28 ya generaste una y la agregaste a tu `.env` local, pero dijiste que vas a generar otra distinta para cuando subas a prod (correcto: no conviene reusar la misma llave entre entornos). Pasos, para repetir las veces que haga falta:
+  1. En tu máquina (no en el servidor): `age-keygen -o llave-produccion-myivo.txt`.
+  2. El archivo que genera tiene dos líneas: un comentario con la public key, y la que importa — empieza con `AGE-SECRET-KEY-1...`.
+  3. Copiá solo esa línea como valor de `MYIVO_BACKUP_ENCRYPTION_KEY` en el `.env` de la raíz del servidor de producción (yo no leo ni edito `.env`, eso lo hacés vos).
+  4. Guardá el archivo completo en tu gestor de contraseñas (1Password, Bitwarden, etc.) — es la única copia fuera del servidor (FR-018a: nunca solo en la máquina que se respalda; si perdés el VPS, es la única forma de recuperar un backup viejo).
+  5. Borrá el archivo suelto del disco una vez que esté guardado en el gestor y pegado en el `.env`.
 - [ ] **Correr el simulacro de restauración una vez más, ya con tus credenciales reales**, contra un VPS/entorno desechable de verdad — lo que probé localmente confirma que el mecanismo funciona, pero FR-020 pide esa confirmación con la infraestructura real antes de confiar en ella si el VPS se pierde de verdad.
 
 ## Qué falta del feature en general (yo lo sigo)
