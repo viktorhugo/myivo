@@ -5,11 +5,11 @@
 //
 // CÓMO EJECUTAR (lo ejecuta el usuario, nunca el asistente — acuerdo vigente
 // toda la sesión):
-// 1. `pnpm --filter @myivo/api exec prisma migrate dev --name multi_usuario`
+// 1. `pnpm --filter @cufeo/api exec prisma migrate dev --name multi_usuario`
 //    (T004 — agrega Factura.usuarioId NULLABLE a propósito, ver el comentario
 //    en schema.prisma; y las tablas de Better Auth).
 // 2. Este script:
-//    `pnpm --filter @myivo/api migrar:datos-existentes tu-correo-real@ejemplo.com "tu-contraseña-nueva"`
+//    `pnpm --filter @cufeo/api migrar:datos-existentes tu-correo-real@ejemplo.com "tu-contraseña-nueva"`
 //    (la contraseña entre comillas si tiene espacios; considera borrar esta
 //    línea de tu historial de shell después, o usar un prefijo con espacio
 //    si tu shell lo ignora del historial). Vas a recibir un correo de
@@ -17,7 +17,7 @@
 //    cuenta como verificada directamente.
 // 3. Migración de seguimiento — ahora que todas las facturas tienen
 //    usuarioId, vuelve la columna obligatoria:
-//    `pnpm --filter @myivo/api exec prisma migrate dev --name usuario_id_obligatorio`
+//    `pnpm --filter @cufeo/api exec prisma migrate dev --name usuario_id_obligatorio`
 //    (antes, edita schema.prisma: `usuarioId String` y `usuario User` sin
 //    el `?` en ambas líneas del modelo Factura).
 // 4. Las políticas RLS (T005, prisma/rls-policies.sql) — antes o después de
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
   const [correo, contraseña] = process.argv.slice(2);
   if (!correo || !contraseña) {
     console.error(
-      'Uso: pnpm --filter @myivo/api migrar:datos-existentes <correo> <contraseña>',
+      'Uso: pnpm --filter @cufeo/api migrar:datos-existentes <correo> <contraseña>',
     );
     process.exitCode = 1;
     return;

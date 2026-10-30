@@ -57,7 +57,7 @@ describe('Borrado de cuenta con purga diferida (specs/008-borrado-cuenta)', () =
     usuarioId: string;
     correo: string;
   }> {
-    const correo = `eliminacion-${randomUUID()}@myivo-test.local`;
+    const correo = `eliminacion-${randomUUID()}@cufeo-test.local`;
     const { user } = await auth.api.signUpEmail({
       body: { name: 'Cuenta de prueba', email: correo, password: contraseña },
     });

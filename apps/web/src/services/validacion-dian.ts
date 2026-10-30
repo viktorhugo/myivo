@@ -1,5 +1,5 @@
 import { API_BASE_URL, parsearRespuesta, type ResultadoValidacionDian } from './invoices';
-import type { MetodoValidacionDian } from '@myivo/domain';
+import type { MetodoValidacionDian } from '@cufeo/domain';
 
 export interface ValidacionDianDto {
   id: string;

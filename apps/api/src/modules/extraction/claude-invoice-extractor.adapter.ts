@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
-import type { ExtractedInvoiceData, InvoiceExtractor } from '@myivo/domain';
+import type { ExtractedInvoiceData, InvoiceExtractor } from '@cufeo/domain';
 import type { Env } from '../../config/env.schema';
 import {
   EXTRACTION_SYSTEM_PROMPT_CON_SCHEMA,

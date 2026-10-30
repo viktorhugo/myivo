@@ -6,7 +6,7 @@ import {
   extractedInvoiceDataSchema,
   type ExtractedInvoiceData,
   type InvoiceExtractor,
-} from '@myivo/domain';
+} from '@cufeo/domain';
 import type { Env } from '../../config/env.schema';
 import { EXTRACTION_SCHEMA_NAME, EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE } from './extraction-prompt';
 import { decodificarImagen } from './image-decoder';

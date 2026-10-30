@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { calcularReporteAnual, type FacturaParaReporte, type ReporteAnual } from '@myivo/domain';
+import { calcularReporteAnual, type FacturaParaReporte, type ReporteAnual } from '@cufeo/domain';
 import { FacturaRepository, type FacturaConValidacion } from '../invoices/factura.repository';
 
 export interface DatosReporteAnual {

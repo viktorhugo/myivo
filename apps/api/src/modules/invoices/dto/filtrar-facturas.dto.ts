@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { tipoDocumentoSchema } from '@myivo/domain';
+import { tipoDocumentoSchema } from '@cufeo/domain';
 
 const facturaEstadoSchema = z.enum([
   'recibida',

@@ -1,4 +1,4 @@
-# Sistema de diseño — MyIvo
+# Sistema de diseño — Cufeo
 
 Documento de referencia para recrear el diseño de la app (dos temas, todas las pantallas ya construidas). Extraído directamente del código real (`apps/web/src/theme/tokens.css` + cada página en `apps/web/src/pages/`), no de memoria — cualquier valor de aquí coincide con lo que corre hoy.
 
@@ -173,7 +173,7 @@ Si no hay sesión: se reemplaza todo el `<main>` por la pantalla de **Login** (p
 Card centrada verticalmente en toda la altura de pantalla, 280px de ancho, `padding: 24px`, `gap: 12px` entre elementos, `<MarcasEsquina />`. Tres variantes por estado (`modo`), todas dentro del mismo layout de card centrada:
 
 **`iniciar-sesion` / `crear-cuenta`** (mismo formulario, el texto y el submit cambian):
-- Título `<h1 class="heading">MyIvo</h1>` (24px).
+- Título `<h1 class="heading">Cufeo</h1>` (24px).
 - Campo "Correo" (label + input email).
 - Campo "Contraseña" (label + input password; `autoComplete` cambia entre `current-password`/`new-password`; `minLength=8` solo al crear cuenta).
 - Mensaje de error (`role="alert"`, color rojo) si aplica.

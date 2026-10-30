@@ -50,7 +50,7 @@ describe('Regresión de 2FA/cambio de contraseña con el hook de notificaciones 
   const contraseña = 'contraseña-de-prueba-suficientemente-larga';
 
   async function cuentaNuevaLogueada(): Promise<{ agente: ReturnType<typeof request.agent>; usuarioId: string }> {
-    const correo = `notif-${randomUUID()}@myivo-test.local`;
+    const correo = `notif-${randomUUID()}@cufeo-test.local`;
     const { user } = await auth.api.signUpEmail({
       body: { name: 'Cuenta de prueba', email: correo, password: contraseña },
     });

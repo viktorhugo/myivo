@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { ArchivoDerivado } from '@myivo/domain';
+import type { ArchivoDerivado } from '@cufeo/domain';
 import { decodificarImagen } from '../extraction/image-decoder';
 import { esPdf, renderizarPrimeraPagina } from '../extraction/pdf-decoder';
 import { FacturaRepository } from './factura.repository';

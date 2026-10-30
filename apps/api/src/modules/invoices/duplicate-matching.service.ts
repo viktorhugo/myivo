@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectTransaction } from '@nestjs-cls/transactional';
-import { esDuplicadoExactoPorCufe, type Factura, type MarcaPosibleDuplicado } from '@myivo/domain';
+import { esDuplicadoExactoPorCufe, type Factura, type MarcaPosibleDuplicado } from '@cufeo/domain';
 import type { PrismaClient } from '@prisma/client';
 import { aDominio } from './factura.repository';
 

@@ -15,7 +15,7 @@ import {
   type MedioPago,
   type ResultadoValidacionDian,
   type TipoDocumento,
-} from '@myivo/domain';
+} from '@cufeo/domain';
 import { Prisma } from '@prisma/client';
 import type {
   Factura as FacturaPrisma,

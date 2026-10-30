@@ -21,7 +21,7 @@ import { FacturaRepository } from '../src/modules/invoices/factura.repository';
  *
  * Requiere una base de datos real, ya migrada (T004/T005) — no la ejecuta el
  * asistente, la ejecuta el usuario (acuerdo vigente toda la sesión) con
- * `pnpm --filter @myivo/api test` una vez que:
+ * `pnpm --filter @cufeo/api test` una vez que:
  * 1. `prisma migrate dev` (T004) ya corrió.
  * 2. `prisma/rls-policies.sql` (T005) ya está aplicado.
  * 3. La migración de columna obligatoria de seguimiento (ver el comentario
@@ -43,8 +43,8 @@ describe('Aislamiento entre cuentas (specs/006-multi-usuario)', () => {
   let agenteB: ReturnType<typeof request.agent>;
   let cuentaAId: string;
   let cuentaBId: string;
-  const correoA = `cuenta-a-${randomUUID()}@myivo-test.local`;
-  const correoB = `cuenta-b-${randomUUID()}@myivo-test.local`;
+  const correoA = `cuenta-a-${randomUUID()}@cufeo-test.local`;
+  const correoB = `cuenta-b-${randomUUID()}@cufeo-test.local`;
   const contraseña = 'contraseña-de-prueba-suficientemente-larga';
 
   const facturaIdsPorCuenta: Record<string, string[]> = {};

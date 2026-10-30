@@ -11,7 +11,7 @@ import type {
   ResultadoValidacionDian,
   MetodoDeteccionDuplicado,
   ItemFactura,
-} from '@myivo/domain';
+} from '@cufeo/domain';
 export type { FacturaEstado, MedioPago, CufeOrigen, TipoDocumento, CampoConConfianza, ResultadoValidacionDian, MetodoDeteccionDuplicado };
 
 export interface UltimaValidacionDianDto {

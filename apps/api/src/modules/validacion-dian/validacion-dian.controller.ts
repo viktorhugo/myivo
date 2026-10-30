@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import type { ValidacionDian } from '@myivo/domain';
+import type { ValidacionDian } from '@cufeo/domain';
 import { SessionUsuarioGuard } from '../auth/guards/session-usuario.guard';
 import { UsuarioId } from '../auth/usuario-id.decorator';
 import { registrarValidacionDianSchema } from './dto/registrar-validacion-dian.dto';

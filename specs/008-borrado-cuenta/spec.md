@@ -12,7 +12,7 @@
 
 ### User Story 1 - Un usuario borra su propia cuenta desde la app (Priority: P1)
 
-Un usuario autenticado decide dejar de usar MyIvo. Desde la configuración de su cuenta, dentro de la misma app, inicia el borrado, confirma de forma deliberada que entiende las consecuencias, y la cuenta queda inaccesible de inmediato.
+Un usuario autenticado decide dejar de usar Cufeo. Desde la configuración de su cuenta, dentro de la misma app, inicia el borrado, confirma de forma deliberada que entiende las consecuencias, y la cuenta queda inaccesible de inmediato.
 
 **Why this priority**: Es el requisito bloqueante para poder enviar la app a revisión de Apple (Guideline 5.1.1(v): toda app que permite crear una cuenta debe permitir borrarla desde dentro de la app; una simple desactivación no es aceptada). Sin esto, no hay publicación posible.
 
@@ -28,7 +28,7 @@ Un usuario autenticado decide dejar de usar MyIvo. Desde la configuración de su
 
 ### User Story 2 - Un usuario revierte un borrado solicitado por error (Priority: P1)
 
-Dentro de los 30 días posteriores a solicitar el borrado, el usuario cambia de opinión (o alguien más usó la cuenta por error) e intenta volver a entrar a MyIvo. El sistema reconoce que esa cuenta tiene una eliminación programada y le ofrece cancelarla.
+Dentro de los 30 días posteriores a solicitar el borrado, el usuario cambia de opinión (o alguien más usó la cuenta por error) e intenta volver a entrar a Cufeo. El sistema reconoce que esa cuenta tiene una eliminación programada y le ofrece cancelarla.
 
 **Why this priority**: Es la contrapartida necesaria de que el borrado sea "instantáneo e irreversible en apariencia" — sin una vía real de revertirlo, un error humano destruye evidencia tributaria real (facturas, soportes) sin posibilidad de vuelta atrás. Tiene la misma prioridad que la Historia 1 porque ambas son caras de la misma garantía que el usuario ya exigió.
 

@@ -50,7 +50,7 @@ describe('Purga de cuentas eliminadas (specs/008-borrado-cuenta, US3)', () => {
 
   /** Registra una cuenta con eliminación programada ya vencida (simula el paso de 30 días sin reversión). */
   async function cuentaConEliminacionVencida(): Promise<string> {
-    const correo = `purga-${randomUUID()}@myivo-test.local`;
+    const correo = `purga-${randomUUID()}@cufeo-test.local`;
     const { user } = await auth.api.signUpEmail({
       body: { name: 'Cuenta a purgar', email: correo, password: 'contraseña-de-prueba-suficiente' },
     });
@@ -109,7 +109,7 @@ describe('Purga de cuentas eliminadas (specs/008-borrado-cuenta, US3)', () => {
   });
 
   it('no toca una cuenta cuya eliminación todavía no venció', async () => {
-    const correo = `purga-vigente-${randomUUID()}@myivo-test.local`;
+    const correo = `purga-vigente-${randomUUID()}@cufeo-test.local`;
     const { user } = await auth.api.signUpEmail({
       body: { name: 'Cuenta vigente', email: correo, password: 'contraseña-de-prueba-suficiente' },
     });

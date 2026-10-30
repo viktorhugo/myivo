@@ -59,8 +59,8 @@ export class CuentaEliminacionService {
     // única señal que el titular real tiene para enterarse y revertirlo.
     await this.notificaciones.enviarCorreo(
       usuario.email,
-      'Tu cuenta de MyIvo será eliminada — MyIvo',
-      `<p>Programaste la eliminación de tu cuenta de MyIvo.</p><p>Se eliminará de forma irreversible el <strong>${eliminacionProgramadaPara.toLocaleDateString('es-CO')}</strong> si no la cancelás antes volviendo a iniciar sesión.</p><p>Si no fuiste vos, iniciá sesión de inmediato para cancelarla.</p>`,
+      'Tu cuenta de Cufeo será eliminada — Cufeo',
+      `<p>Programaste la eliminación de tu cuenta de Cufeo.</p><p>Se eliminará de forma irreversible el <strong>${eliminacionProgramadaPara.toLocaleDateString('es-CO')}</strong> si no la cancelás antes volviendo a iniciar sesión.</p><p>Si no fuiste vos, iniciá sesión de inmediato para cancelarla.</p>`,
     );
 
     return { eliminacionProgramadaPara };
@@ -95,8 +95,8 @@ export class CuentaEliminacionService {
     await this.prisma.user.update({ where: { id: usuarioId }, data: { eliminacionProgramadaPara: null } });
     await this.notificaciones.enviarCorreo(
       usuario.email,
-      'Cancelaste la eliminación de tu cuenta — MyIvo',
-      '<p>Tu cuenta de MyIvo ya no tiene ninguna eliminación programada — seguís con acceso normal.</p>',
+      'Cancelaste la eliminación de tu cuenta — Cufeo',
+      '<p>Tu cuenta de Cufeo ya no tiene ninguna eliminación programada — seguís con acceso normal.</p>',
     );
     return { eliminacionProgramadaPara: null };
   }

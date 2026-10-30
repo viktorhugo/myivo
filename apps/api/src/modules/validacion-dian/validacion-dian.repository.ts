@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectTransaction } from '@nestjs-cls/transactional';
-import type { MetodoValidacionDian, ResultadoValidacionDian, ValidacionDian } from '@myivo/domain';
+import type { MetodoValidacionDian, ResultadoValidacionDian, ValidacionDian } from '@cufeo/domain';
 import type { PrismaClient, ValidacionDian as ValidacionDianPrisma } from '@prisma/client';
 
 function aDominio(fila: ValidacionDianPrisma): ValidacionDian {

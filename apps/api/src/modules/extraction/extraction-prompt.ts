@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { extractedInvoiceDataSchema } from '@myivo/domain';
+import { extractedInvoiceDataSchema } from '@cufeo/domain';
 
 /**
  * Prompt de extracción compartido por todos los adaptadores de

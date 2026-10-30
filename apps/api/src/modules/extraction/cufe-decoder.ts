@@ -1,5 +1,5 @@
 import jsQR from 'jsqr';
-import type { CufeOrigen } from '@myivo/domain';
+import type { CufeOrigen } from '@cufeo/domain';
 import { decodificarImagen } from './image-decoder';
 
 export interface CufeDecodificado {

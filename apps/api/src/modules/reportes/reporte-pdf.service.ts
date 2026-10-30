@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import pdfMake from 'pdfmake';
 import type { Content, TableCell } from 'pdfmake/interfaces';
-import type { ReporteAnual } from '@myivo/domain';
+import type { ReporteAnual } from '@cufeo/domain';
 import type { FacturaConValidacion } from '../invoices/factura.repository';
 import { NOTA_PRINCIPIO_IV, nombreMes } from './reporte-formato';
 

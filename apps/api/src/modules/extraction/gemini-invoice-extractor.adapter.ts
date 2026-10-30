@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
-import { extractedInvoiceDataSchema, type ExtractedInvoiceData, type InvoiceExtractor } from '@myivo/domain';
+import { extractedInvoiceDataSchema, type ExtractedInvoiceData, type InvoiceExtractor } from '@cufeo/domain';
 import type { Env } from '../../config/env.schema';
 import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_MESSAGE, parsearJsonDeRespuesta } from './extraction-prompt';
 import { decodificarImagen } from './image-decoder';

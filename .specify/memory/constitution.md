@@ -1,61 +1,37 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.1.0 → 2.2.0
-Bump rationale: MINOR — expansión material de dos guías existentes, no redefinición
-incompatible. Ninguna garantía previa se retira ni se debilita: el techo de costo
-sube de número pero sigue siendo un techo, y la notificación de seguridad es una
-obligación NUEVA que se agrega, no un reemplazo de ninguna existente.
+Version change: 2.2.0 → 2.2.1
+Bump rationale: PATCH — cambio de nombre del producto (MyIvo → Cufeo), decidido por
+el usuario (disponibilidad real de dominio verificada para "Cufeo" en .co/.app; la
+mayoría de nombres candidatos ya tenían el .com ocupado). Es redacción/branding, no
+una redefinición de ningún principio ni de la governance — ninguna garantía,
+obligación ni umbral cambia de contenido.
 
-Principio modificado:
-  - VII. Privacidad y Soberanía Operativa —
-    (a) el techo de costo operativo objetivo sube de <15 a <25 USD/mes de
-        infraestructura. Motivo: la publicación en App Store exige una cuenta de
-        Apple Developer Program (99 USD/año ≈ 8.25 USD/mes amortizados), que no
-        existía como costo cuando se fijó el techo de 15. El consumo de LLM sigue
-        excluido del techo (escala con el uso, no es costo fijo) — sin cambios ahí.
-    (b) se agrega una obligación nueva: toda acción que cambie cómo alguien accede
-        a su propia cuenta (activar/desactivar 2FA, agregar/eliminar un passkey,
-        cambiar la contraseña) o que la afecte de forma irreversible (todo el
-        ciclo de borrado de cuenta del Principio I v2.1.0: programar, cancelar,
-        purgar) MUST generar un correo de aviso al titular. Motivo: se encontró
-        que el ciclo de borrado de cuenta no notificaba nada — el titular no
-        tenía ninguna constancia escrita de que su cuenta iba a desaparecer, ni
-        de que la canceló, ni de que ya se purgó; para una acción irreversible
-        eso es una garantía básica de habeas data, no un nice-to-have.
+Principios modificados: ninguno en sustancia. Todas las menciones literales de
+"MyIvo" en el cuerpo del documento (ninguna fuera del título) pasan a "Cufeo".
 
-Principios sin cambios: I, II, III, IV, V, VI, VIII — ninguno depende del techo de
-costo ni de la política de notificaciones; se revisaron explícitamente.
+Alcance del rename fuera de esta constitution (para que quede trazado en un solo
+lugar): nombre visible en la UI, bundle ID de iOS (`com.myivo.app` → `com.cufeo.app`,
+capacitor.config.ts + Info.plist + project.pbxproj), issuer de 2FA TOTP (visible en
+apps autenticadoras), asuntos de los correos de aviso de seguridad, README.md,
+política de privacidad, y las menciones en specs/002, specs/007, specs/008,
+specs/009. Deliberadamente SIN tocar: el namespace interno de paquetes pnpm
+(`@myivo/domain`, `@myivo/api`, `@myivo/web`) ni los nombres de variables de entorno
+(p. ej. `MYIVO_BACKUP_ENCRYPTION_KEY`) — son identificadores técnicos internos, no
+branding de cara al usuario, y renombrarlos exigiría que el usuario también
+actualizara su propio `.env` ya configurado; no fue parte de lo pedido.
 
-Secciones añadidas: ninguna (expansión dentro del Principio VII existente).
-Secciones removidas: ninguna.
+Principios sin cambios: I-VIII — ninguno depende del nombre del producto.
 
-Plantillas dependientes:
-  ✅ .specify/templates/plan-template.md   — "Constitution Check" es genérico, los
-                                             gates se derivan en tiempo de /speckit-plan;
-                                             no requiere edición.
-  ✅ .specify/templates/spec-template.md   — sin cambios estructurales requeridos.
-  ✅ .specify/templates/tasks-template.md  — sin cambios estructurales requeridos.
-  ✅ README.md                              — "Costo operativo estimado" (línea ~123)
-                                             cita el techo viejo de <15 USD/mes y
-                                             necesita el mismo ajuste a <25 (editado
-                                             junto con esta enmienda, no queda deuda).
+Secciones añadidas: ninguna. Secciones removidas: ninguna.
 
-Implementado junto con esta enmienda (no quedó como TODO diferido): el correo de
-aviso para los 5 eventos de Better Auth (hook global `hooks.after` en auth.ts,
-verificado contra el código instalado de better-auth@1.6.25/@better-auth/passkey@
-1.6.25) y los 3 del ciclo de borrado de cuenta (NotificacionesService nuevo,
-inyectado en CuentaEliminacionService/PurgaCuentasService) — ver auth.spec.ts y
-test/notificaciones-seguridad.e2e-spec.ts.
+Plantillas dependientes: sin impacto — ninguna cita el nombre del producto.
 
-TODOs diferidos: ninguno de esta enmienda. La decisión sobre proveedores sociales
-(Apple Sign-In vs. dropear los existentes) ya se resolvió aparte, fuera de esta
-enmienda de gobernanza (se dropearon Google/Microsoft/GitHub). El refactor de
-apps/web consumiendo @myivo/domain también se resolvió aparte, sin tocar la
-constitution (no era una cuestión de gobernanza).
+TODOs diferidos: ninguno.
 -->
 
-# MyIvo Constitution
+# Cufeo Constitution
 
 Sistema personal de gestión de facturas físicas fotografiadas, orientado a producir
 soporte confiable para la declaración de renta en Colombia.
@@ -258,4 +234,4 @@ verificar el cumplimiento de los ocho principios. La complejidad se justifica o 
 **Guía de runtime**: cuando existan, `README.md` y `docs/quickstart.md` MUST enlazar este
 documento como fuente de autoridad y MUST NOT duplicar sus reglas, para evitar divergencia.
 
-**Version**: 2.2.0 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-10-28
+**Version**: 2.2.1 | **Ratified**: 2026-07-25 | **Last Amended**: 2026-10-30

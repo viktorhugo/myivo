@@ -1,6 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { InvoiceExtractor } from '@myivo/domain';
+import type { InvoiceExtractor } from '@cufeo/domain';
 import type { Env } from '../../config/env.schema';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { ClaudeInvoiceExtractorAdapter } from './claude-invoice-extractor.adapter';

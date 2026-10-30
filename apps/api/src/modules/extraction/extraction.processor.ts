@@ -11,7 +11,7 @@ import {
   type ExtractedInvoiceData,
   type Factura,
   type InvoiceExtractor,
-} from '@myivo/domain';
+} from '@cufeo/domain';
 import type { Env } from '../../config/env.schema';
 import { aislarPorUsuario, type PrismaTransactionalAdapter } from '../auth/aislar-por-usuario';
 import { UsuarioService } from '../auth/usuario.service';

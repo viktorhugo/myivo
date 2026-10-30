@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { conciliarCufes } from '@myivo/domain';
+import { conciliarCufes } from '@cufeo/domain';
 import { SessionUsuarioGuard } from '../auth/guards/session-usuario.guard';
 import { UsuarioId } from '../auth/usuario-id.decorator';
 import { FacturaRepository } from '../invoices/factura.repository';

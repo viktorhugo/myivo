@@ -215,7 +215,7 @@ export default function Login({
           ) : (
             <form onSubmit={manejarSubmit} style={{ display: 'contents' }}>
               <h1 className="heading" style={{ margin: 0, fontSize: tituloFormulario, letterSpacing: letterSpacingTitulo }}>
-                MyIvo
+                Cufeo
               </h1>
               <div>
                 <label htmlFor="correo" style={{ display: 'block', fontSize: 12, color: 'var(--color-text-label)', marginBottom: 5 }}>

@@ -10,7 +10,7 @@
 // que usa el resto de la app — reimplementarla a mano acá sería duplicar
 // lógica ya correcta, no simplificarla.
 //
-// CÓMO EJECUTAR: `pnpm --filter @myivo/api purgar:cuentas-eliminadas`.
+// CÓMO EJECUTAR: `pnpm --filter @cufeo/api purgar:cuentas-eliminadas`.
 
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';

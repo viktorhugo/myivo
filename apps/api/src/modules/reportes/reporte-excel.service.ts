@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import ExcelJS from 'exceljs';
-import type { ReporteAnual } from '@myivo/domain';
+import type { ReporteAnual } from '@cufeo/domain';
 import type { FacturaConValidacion } from '../invoices/factura.repository';
 import { NOTA_PRINCIPIO_IV, nombreMes } from './reporte-formato';
 

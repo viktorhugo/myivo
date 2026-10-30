@@ -15,7 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import type { CorreccionManual, Factura, ItemFactura, MarcaPosibleDuplicado } from '@myivo/domain';
+import type { CorreccionManual, Factura, ItemFactura, MarcaPosibleDuplicado } from '@cufeo/domain';
 import type { Response } from 'express';
 import { mimeTypeDeArchivo } from '../../common/mime';
 import { SessionUsuarioGuard } from '../auth/guards/session-usuario.guard';

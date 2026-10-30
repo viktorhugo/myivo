@@ -65,7 +65,7 @@ const baseEnvSchema = z.object({
 
   // research.md § 2 — Resend, para el correo de verificación (FR-002).
   RESEND_API_KEY: z.string().min(1),
-  EMAIL_FROM: z.string().min(1, 'Remitente del correo de verificación, ej. "MyIvo <no-reply@tu-dominio.com>"'),
+  EMAIL_FROM: z.string().min(1, 'Remitente del correo de verificación, ej. "Cufeo <no-reply@tu-dominio.com>"'),
 
   EXTRACTION_PROVIDER: extractionProviderSchema.default('claude'),
   EXTRACTION_MODEL: z.string().min(1).default('claude-sonnet-5'),

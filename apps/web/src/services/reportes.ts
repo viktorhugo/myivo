@@ -1,5 +1,5 @@
 import { API_BASE_URL, parsearRespuesta } from './invoices';
-import type { DesgloseMes, ReporteAnual } from '@myivo/domain';
+import type { DesgloseMes, ReporteAnual } from '@cufeo/domain';
 
 // Sin campos de fecha — forma idéntica a la del dominio.
 export type DesgloseMesDto = DesgloseMes;

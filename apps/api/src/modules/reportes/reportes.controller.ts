@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import type { ReporteAnual } from '@myivo/domain';
+import type { ReporteAnual } from '@cufeo/domain';
 import type { Response } from 'express';
 import { SessionUsuarioGuard } from '../auth/guards/session-usuario.guard';
 import { UsuarioId } from '../auth/usuario-id.decorator';

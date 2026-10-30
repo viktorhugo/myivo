@@ -79,8 +79,8 @@ export class PurgaCuentasService {
     // es la única constancia escrita que el titular tiene de que se ejecutó.
     await this.notificaciones.enviarCorreo(
       email,
-      'Tu cuenta de MyIvo fue eliminada definitivamente — MyIvo',
-      '<p>Se venció la ventana de 30 días y tu cuenta de MyIvo, junto con todas tus facturas, se eliminó de forma irreversible.</p>',
+      'Tu cuenta de Cufeo fue eliminada definitivamente — Cufeo',
+      '<p>Se venció la ventana de 30 días y tu cuenta de Cufeo, junto con todas tus facturas, se eliminó de forma irreversible.</p>',
     );
   }
 }
